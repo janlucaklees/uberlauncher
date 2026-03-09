@@ -12,7 +12,7 @@ const (
 
 type Event struct {
 	Type    EventType
-	Entries []types.EntryDTO
+	Entries []types.Entry
 	Message string
 	Err     error
 }

@@ -1,22 +1,22 @@
 package types
 
-type EntryDTO struct {
-	SkillName   string
-	EntryID     string
-	DisplayText string
-	IsFreeText  bool
+type Entry struct {
+	SkillName        string
+	EntryID          string
+	DisplayText      string
+	SupportsFreeText bool
 }
 
-type TriggerType int
+func NewEntry(skillName, entryID string) Entry {
+	return Entry{
+		SkillName:        skillName,
+		EntryID:          entryID,
+		DisplayText:      skillName + " " + entryID,
+		SupportsFreeText: false,
+	}
+}
 
-const (
-	TriggerEntry TriggerType = iota
-	TriggerRawInput
-)
-
-type RunCommandDTO struct {
-	SkillName   string
-	EntryID     string
-	RawInput    string
-	TriggerType TriggerType
+type Command struct {
+	Entry    Entry
+	RawInput string
 }

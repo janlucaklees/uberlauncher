@@ -6,19 +6,23 @@ import (
 	"os"
 
 	"uberlauncher/internal/core"
-	refreshjob "uberlauncher/internal/jobs/refresh_apps_cache"
+	"uberlauncher/internal/skill"
+	"uberlauncher/internal/skills/apps"
+	"uberlauncher/internal/skills/system"
+	"uberlauncher/internal/skills/todo"
+	"uberlauncher/internal/skills/wifi"
 )
 
-func main() {
-	if len(os.Args) >= 3 && os.Args[1] == "__internal" && os.Args[2] == "refresh-app-cache" {
-		if err := refreshjob.Run(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		return
-	}
+var skills = []skill.Skill{
+	apps.New(),
+	todo.New(),
+	system.NewShutdown(),
+	system.NewRestart(),
+	wifi.New(),
+}
 
-	if err := core.Run(context.Background()); err != nil {
+func main() {
+	if err := core.Run(context.Background(), skills); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

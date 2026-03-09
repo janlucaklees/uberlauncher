@@ -30,12 +30,12 @@ func New() skill.Skill {
 	return &Skill{}
 }
 
-func (s *Skill) Manifest() skill.Manifest {
-	return skill.Manifest{Name: "apps", SupportsFreeText: false}
+func (s *Skill) Name() string {
+	return "apps"
 }
 
-func (s *Skill) Start(ctx context.Context, runtime skill.Runtime) error {
-	entries, err := loadEntries(runtime.CacheDir())
+func (s *Skill) Init(ctx context.Context, runtime skill.Runtime) error {
+	entries, err := loadEntries(s.Name(), runtime.CacheDir())
 	if err != nil {
 		runtime.ReportError(err)
 		return nil
@@ -48,17 +48,14 @@ func (s *Skill) Start(ctx context.Context, runtime skill.Runtime) error {
 	return nil
 }
 
-func (s *Skill) Execute(ctx context.Context, cmd types.RunCommandDTO) error {
-	if cmd.TriggerType != types.TriggerEntry {
-		return errors.New("apps skill only supports entry triggers")
-	}
-	if cmd.RawInput == "" && cmd.EntryID == "" {
+func (s *Skill) Execute(ctx context.Context, cmd types.Command) error {
+	if cmd.RawInput == "" && cmd.Entry.EntryID == "" {
 		return errors.New("missing app entry")
 	}
 
 	execCmd := cmd.RawInput
 	if execCmd == "" {
-		execCmd = cmd.EntryID
+		execCmd = cmd.Entry.EntryID
 	}
 
 	if !hasCommand("hyprctl") {
@@ -68,28 +65,19 @@ func (s *Skill) Execute(ctx context.Context, cmd types.RunCommandDTO) error {
 	return exec.CommandContext(ctx, "hyprctl", "dispatch", "exec", execCmd).Start()
 }
 
-func (s *Skill) Stop(ctx context.Context) error {
-	return nil
-}
-
-func cacheDir(base string) string {
-	return base
-}
-
-func CacheDir() string {
+func (s *Skill) CacheDir() string {
 	base, err := os.UserCacheDir()
 	if err != nil {
 		base = filepath.Join(os.TempDir(), "uberlauncher")
 	}
-	return filepath.Join(base, "uberlauncher", "apps")
+	return filepath.Join(base, "uberlauncher", s.Name())
 }
 
 func cachePaths(base string) (string, string) {
-	dir := cacheDir(base)
-	return filepath.Join(dir, "apps.tsv"), filepath.Join(dir, "apps.hash")
+	return filepath.Join(base, "apps.tsv"), filepath.Join(base, "apps.hash")
 }
 
-func loadEntries(cacheBase string) ([]types.EntryDTO, error) {
+func loadEntries(skillName, cacheBase string) ([]types.Entry, error) {
 	tsvPath, hashPath := cachePaths(cacheBase)
 
 	if err := os.MkdirAll(cacheBase, 0o755); err != nil {
@@ -108,7 +96,7 @@ func loadEntries(cacheBase string) ([]types.EntryDTO, error) {
 		_ = file.Close()
 	}()
 
-	entries := make([]types.EntryDTO, 0)
+	entries := make([]types.Entry, 0)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -121,11 +109,10 @@ func loadEntries(cacheBase string) ([]types.EntryDTO, error) {
 		if name == "" || execCmd == "" {
 			continue
 		}
-		entry := types.EntryDTO{
-			SkillName:   "apps",
+		entry := types.Entry{
+			SkillName:   skillName,
 			EntryID:     execCmd,
 			DisplayText: name,
-			IsFreeText:  false,
 		}
 		entries = append(entries, entry)
 	}
@@ -156,15 +143,6 @@ func refreshCache(tsvPath, hashPath string) error {
 		}
 	}
 	return nil
-}
-
-func RefreshCache() error {
-	base := CacheDir()
-	tsvPath, hashPath := cachePaths(base)
-	if err := os.MkdirAll(base, 0o755); err != nil {
-		return err
-	}
-	return refreshCache(tsvPath, hashPath)
 }
 
 func writeCache(path string, entries []appEntry) error {
@@ -244,17 +222,25 @@ func parseDesktopFile(path string) (appEntry, bool) {
 
 	var name string
 	var execCmd string
+	var entryType string
 	noDisplay := false
 	hidden := false
+	terminal := false
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
 		if strings.HasPrefix(line, "Name=") && name == "" {
 			name = strings.TrimPrefix(line, "Name=")
 		}
 		if strings.HasPrefix(line, "Exec=") && execCmd == "" {
 			execCmd = strings.TrimPrefix(line, "Exec=")
+		}
+		if strings.HasPrefix(line, "Type=") && entryType == "" {
+			entryType = strings.TrimPrefix(line, "Type=")
 		}
 		if strings.HasPrefix(strings.ToLower(line), "nodisplay=") {
 			noDisplay = strings.TrimPrefix(strings.ToLower(line), "nodisplay=") == "true"
@@ -262,9 +248,12 @@ func parseDesktopFile(path string) (appEntry, bool) {
 		if strings.HasPrefix(strings.ToLower(line), "hidden=") {
 			hidden = strings.TrimPrefix(strings.ToLower(line), "hidden=") == "true"
 		}
+		if strings.HasPrefix(strings.ToLower(line), "terminal=") {
+			terminal = strings.TrimPrefix(strings.ToLower(line), "terminal=") == "true"
+		}
 	}
 
-	if name == "" || execCmd == "" || noDisplay || hidden {
+	if entryType != "Application" || hidden || noDisplay || terminal || execCmd == "" || name == "" {
 		return appEntry{}, false
 	}
 

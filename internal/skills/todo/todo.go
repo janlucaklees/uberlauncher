@@ -21,26 +21,21 @@ func New() skill.Skill {
 	return &Skill{}
 }
 
-func (s *Skill) Manifest() skill.Manifest {
-	return skill.Manifest{Name: "todo", SupportsFreeText: true}
+func (s *Skill) Name() string {
+	return "todo"
 }
 
-func (s *Skill) Start(ctx context.Context, runtime skill.Runtime) error {
-	entry := types.EntryDTO{
-		SkillName:   "todo",
-		EntryID:     "todo",
-		DisplayText: "todo",
-		IsFreeText:  true,
+func (s *Skill) Init(ctx context.Context, runtime skill.Runtime) error {
+	entry := types.Entry{
+		SkillName:        s.Name(),
+		EntryID:          s.Name(),
+		SupportsFreeText: true,
 	}
-	runtime.PublishEntries([]types.EntryDTO{entry})
+	runtime.PublishEntries([]types.Entry{entry})
 	return nil
 }
 
-func (s *Skill) Execute(ctx context.Context, cmd types.RunCommandDTO) error {
-	if cmd.TriggerType != types.TriggerRawInput {
-		return errors.New("todo skill expects raw input")
-	}
-
+func (s *Skill) Execute(ctx context.Context, cmd types.Command) error {
 	text := strings.TrimSpace(cmd.RawInput)
 	if !strings.HasPrefix(text, "todo ") {
 		return errors.New("todo input must start with 'todo '")
@@ -60,10 +55,6 @@ func (s *Skill) Execute(ctx context.Context, cmd types.RunCommandDTO) error {
 	}
 
 	return quickAdd(ctx, token, text)
-}
-
-func (s *Skill) Stop(ctx context.Context) error {
-	return nil
 }
 
 func quickAdd(ctx context.Context, token, text string) error {

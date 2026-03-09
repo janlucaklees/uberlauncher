@@ -6,21 +6,15 @@ import (
 	"uberlauncher/internal/types"
 )
 
-type Manifest struct {
-	Name             string
-	SupportsFreeText bool
-}
-
 type Skill interface {
-	Manifest() Manifest
-	Start(ctx context.Context, runtime Runtime) error
-	Execute(ctx context.Context, cmd types.RunCommandDTO) error
-	Stop(ctx context.Context) error
+	Name() string
+	Init(ctx context.Context, runtime Runtime) error
+	Execute(ctx context.Context, cmd types.Command) error
 }
 
 type Runtime interface {
-	PublishEntries(entries []types.EntryDTO)
-	UpsertEntries(entries []types.EntryDTO)
+	PublishEntries(entries []types.Entry)
+	UpsertEntries(entries []types.Entry)
 	RemoveEntries(ids []string)
 	Notify(message string)
 	ReportError(err error)

@@ -5,16 +5,17 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sahilm/fuzzy"
 	"uberlauncher/internal/types"
+
+	"github.com/sahilm/fuzzy"
 )
 
 type RankedEntry struct {
-	Entry types.EntryDTO
+	Entry types.Entry
 	Score float64
 }
 
-func RankEntries(query string, entries []types.EntryDTO, usage *UsageStore) []RankedEntry {
+func RankEntries(query string, entries []types.Entry, usage *UsageStore) []RankedEntry {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -45,7 +46,7 @@ func RankEntries(query string, entries []types.EntryDTO, usage *UsageStore) []Ra
 	return ranked
 }
 
-func usageScore(entry types.EntryDTO, usage *UsageStore) float64 {
+func usageScore(entry types.Entry, usage *UsageStore) float64 {
 	if usage == nil {
 		return 0
 	}

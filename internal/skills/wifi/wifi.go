@@ -16,40 +16,31 @@ func New() skill.Skill {
 	return &Skill{}
 }
 
-func (s *Skill) Manifest() skill.Manifest {
-	return skill.Manifest{Name: "wifi", SupportsFreeText: false}
+func (s *Skill) Name() string {
+	return "wifi"
 }
 
-func (s *Skill) Start(ctx context.Context, runtime skill.Runtime) error {
-	entries := []types.EntryDTO{
-		{SkillName: "wifi", EntryID: "wifi on", DisplayText: "wifi on", IsFreeText: false},
-		{SkillName: "wifi", EntryID: "wifi off", DisplayText: "wifi off", IsFreeText: false},
-		{SkillName: "wifi", EntryID: "wifi toggle", DisplayText: "wifi toggle", IsFreeText: false},
+func (s *Skill) Init(ctx context.Context, runtime skill.Runtime) error {
+	entries := []types.Entry{
+		types.NewEntry(s.Name(), "on"),
+		types.NewEntry(s.Name(), "off"),
 	}
 
 	names, _ := knownConnections()
 	for _, name := range names {
-		entries = append(entries, types.EntryDTO{
-			SkillName:   "wifi",
-			EntryID:     "wifi " + name,
-			DisplayText: "wifi " + name,
-			IsFreeText:  false,
-		})
+		entries = append(entries, types.NewEntry(s.Name(), name))
 	}
 
 	runtime.PublishEntries(entries)
 	return nil
 }
 
-func (s *Skill) Execute(ctx context.Context, cmd types.RunCommandDTO) error {
-	if cmd.TriggerType != types.TriggerEntry {
-		return errors.New("wifi skill only supports entry triggers")
-	}
+func (s *Skill) Execute(ctx context.Context, cmd types.Command) error {
 	if !hasCommand("nmcli") {
 		return errors.New("nmcli not found")
 	}
 
-	action := strings.TrimSpace(cmd.EntryID)
+	action := strings.TrimSpace(cmd.Entry.EntryID)
 	action = strings.TrimPrefix(action, "wifi ")
 
 	switch action {
@@ -57,18 +48,12 @@ func (s *Skill) Execute(ctx context.Context, cmd types.RunCommandDTO) error {
 		return exec.CommandContext(ctx, "nmcli", "radio", "wifi", "on").Run()
 	case "off":
 		return exec.CommandContext(ctx, "nmcli", "radio", "wifi", "off").Run()
-	case "toggle":
-		return toggleWifi(ctx)
 	default:
 		if action == "" {
 			return errors.New("missing wifi action")
 		}
 		return exec.CommandContext(ctx, "nmcli", "connection", "up", "id", action).Run()
 	}
-}
-
-func (s *Skill) Stop(ctx context.Context) error {
-	return nil
 }
 
 func knownConnections() ([]string, error) {
@@ -98,19 +83,6 @@ func knownConnections() ([]string, error) {
 		}
 	}
 	return names, nil
-}
-
-func toggleWifi(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "nmcli", "radio", "wifi")
-	output, err := cmd.Output()
-	if err != nil {
-		return err
-	}
-	status := strings.TrimSpace(strings.ToLower(string(output)))
-	if status == "enabled" {
-		return exec.CommandContext(ctx, "nmcli", "radio", "wifi", "off").Run()
-	}
-	return exec.CommandContext(ctx, "nmcli", "radio", "wifi", "on").Run()
 }
 
 func hasCommand(name string) bool {

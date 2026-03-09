@@ -29,7 +29,7 @@ func (m *Manager) ForSkill(skillName string) *SkillRuntime {
 
 var _ skill.Runtime = (*SkillRuntime)(nil)
 
-func (r *SkillRuntime) PublishEntries(entries []types.EntryDTO) {
+func (r *SkillRuntime) PublishEntries(entries []types.Entry) {
 	if err := r.manager.Store.Publish(entries); err != nil {
 		r.manager.Events <- Event{Type: EventError, Err: err}
 		return
@@ -37,7 +37,7 @@ func (r *SkillRuntime) PublishEntries(entries []types.EntryDTO) {
 	r.manager.Events <- Event{Type: EventEntries}
 }
 
-func (r *SkillRuntime) UpsertEntries(entries []types.EntryDTO) {
+func (r *SkillRuntime) UpsertEntries(entries []types.Entry) {
 	if err := r.manager.Store.Upsert(entries); err != nil {
 		r.manager.Events <- Event{Type: EventError, Err: err}
 		return

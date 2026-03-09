@@ -16,7 +16,8 @@ import (
 	"uberlauncher/internal/ui"
 )
 
-func Run(ctx context.Context) error {
+func Run(ctx context.Context, skills []skill.Skill) error {
+
 	entryStore := store.New()
 	manager := runtime.NewManager(entryStore)
 
@@ -27,44 +28,39 @@ func Run(ctx context.Context) error {
 	usageStore := ranking.NewUsageStore(filepath.Join(cacheBase, "uberlauncher"))
 	_ = usageStore.Load()
 
-	skills := RegisterSkills()
-	manifests := make([]skill.Manifest, 0, len(skills))
 	skillMap := make(map[string]skill.Skill)
 
 	for _, skill := range skills {
-		manifest := skill.Manifest()
-		manifests = append(manifests, manifest)
-		skillMap[manifest.Name] = skill
-		runtime := manager.ForSkill(manifest.Name)
-		if err := skill.Start(ctx, runtime); err != nil {
+		name := skill.Name()
+		skillMap[name] = skill
+		// TODO rework
+		runtime := manager.ForSkill(name)
+		if err := skill.Init(ctx, runtime); err != nil {
 			runtime.ReportError(err)
 		}
 	}
 
-	execFn := func(cmd types.RunCommandDTO) error {
-		skill, ok := skillMap[cmd.SkillName]
+	execFn := func(cmd types.Command) error {
+		skill, ok := skillMap[cmd.Entry.SkillName]
 		if !ok {
 			return nil
 		}
 		if err := skill.Execute(ctx, cmd); err != nil {
 			return err
 		}
-		entryID := cmd.EntryID
-		if cmd.TriggerType == types.TriggerRawInput {
-			entryID = cmd.SkillName
+		entryID := cmd.Entry.EntryID
+		if entryID == "" {
+			entryID = cmd.Entry.SkillName
 		}
-		usageKey := ranking.UsageKey(cmd.SkillName, entryID)
-		usageStore.Bump(usageKey, now())
+		usageKey := ranking.UsageKey(cmd.Entry.SkillName, entryID)
+		usageStore.Bump(usageKey, time.Now())
 		_ = usageStore.Save()
 		return nil
 	}
 
-	model := ui.New(entryStore, usageStore, manager.Events, manifests, execFn)
+	// Todo: rework. the model should not hold the core logic, but the logic for presentation.
+	model := ui.New(skillMap, entryStore, usageStore, manager.Events, execFn)
 	program := tea.NewProgram(model, tea.WithAltScreen())
 	_, err = program.Run()
 	return err
-}
-
-func now() time.Time {
-	return time.Now()
 }

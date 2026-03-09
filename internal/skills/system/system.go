@@ -22,26 +22,20 @@ func NewRestart() skill.Skill {
 	return &powerSkill{name: "restart", action: "reboot"}
 }
 
-func (s *powerSkill) Manifest() skill.Manifest {
-	return skill.Manifest{Name: s.name, SupportsFreeText: false}
+func (s *powerSkill) Name() string {
+	return s.name
 }
 
-func (s *powerSkill) Start(ctx context.Context, runtime skill.Runtime) error {
-	entry := types.EntryDTO{
-		SkillName:   s.name,
-		EntryID:     s.name,
-		DisplayText: s.name,
-		IsFreeText:  false,
+func (s *powerSkill) Init(ctx context.Context, runtime skill.Runtime) error {
+	entry := types.Entry{
+		SkillName: s.name,
+		EntryID:   s.name,
 	}
-	runtime.PublishEntries([]types.EntryDTO{entry})
+	runtime.PublishEntries([]types.Entry{entry})
 	return nil
 }
 
-func (s *powerSkill) Execute(ctx context.Context, cmd types.RunCommandDTO) error {
-	if cmd.TriggerType != types.TriggerEntry {
-		return errors.New("system skills only support entry triggers")
-	}
-
+func (s *powerSkill) Execute(ctx context.Context, cmd types.Command) error {
 	if hasCommand("systemctl") {
 		return exec.CommandContext(ctx, "systemctl", s.action).Start()
 	}
@@ -54,10 +48,6 @@ func (s *powerSkill) Execute(ctx context.Context, cmd types.RunCommandDTO) error
 	default:
 		return errors.New("unknown system action")
 	}
-}
-
-func (s *powerSkill) Stop(ctx context.Context) error {
-	return nil
 }
 
 func hasCommand(name string) bool {
