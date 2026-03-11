@@ -26,8 +26,8 @@ type Model struct {
 	ranked        []ranking.RankedEntry
 	selectedEntry *types.Entry
 	userSelected  bool
-	notify        string
-	errMsg        string
+	message       string
+	height        int
 }
 
 func New(skillMap map[string]skill.Skill, store *store.Store, usage *ranking.UsageStore, events <-chan runtime.Event, exec executeFn) Model {
@@ -69,13 +69,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case runtime.EventEntries:
 			m.refreshEntries()
 		case runtime.EventNotify:
-			m.notify = msg.Message
+			m.message = msg.Message
 		case runtime.EventError:
 			if msg.Err != nil {
-				m.errMsg = msg.Err.Error()
+				m.message = msg.Err.Error()
 			}
 		}
 		return m, waitForEvent(m.events)
+	case tea.WindowSizeMsg:
+		m.height = msg.Height
+		return m, nil
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" || msg.String() == "esc" {
 			if m.errMsg != "" {
@@ -142,7 +145,7 @@ func (m *Model) handleEnter() (tea.Model, tea.Cmd) {
 	}
 
 	if err := m.execute(cmd); err != nil {
-		m.errMsg = err.Error()
+		m.message = err.Error()
 		return *m, nil
 	}
 
@@ -151,49 +154,66 @@ func (m *Model) handleEnter() (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	styles := defaultStyles
+
+	if m.height <= 3 {
+		return styles.empty.Render("(no space)")
+	}
+
 	lines := make([]string, 0)
 
-	if m.notify != "" {
-		lines = append(lines, styles.notice.Render(m.notify))
-	}
-	if m.errMsg != "" {
-		lines = append(lines, styles.error.Render(m.errMsg))
-	}
+	lines = m.appendEntries(lines, m.height-2, styles)
+	lines = m.appendInput(lines, 1, styles)
+	lines = m.appendMessage(lines, 1, styles)
 
-	entries := m.renderEntries(styles)
-	if entries != "" {
-		lines = append(lines, entries)
-	}
-
-	lines = append(lines, m.renderInput(styles))
 	return strings.Join(lines, "\n")
 }
 
-func (m Model) renderEntries(styles uiStyles) string {
-	if len(m.ranked) == 0 {
-		return styles.empty.Render("(no matches)")
+func (m Model) appendEntries(lines []string, availableLines int, styles uiStyles) []string {
+	rankedEntryList := m.ranked
+
+	// Shorten the list of entries to the available height
+	if len(rankedEntryList) > availableLines {
+		rankedEntryList = rankedEntryList[:availableLines]
 	}
 
-	lines := make([]string, 0, len(m.ranked))
-	for _, ranked := range m.ranked {
-		entry := ranked.Entry
-		text := entry.DisplayText
-		style := styles.entry.Render(text)
+	entryLineList := make([]string, len(rankedEntryList))
+	for i := range rankedEntryList {
+		entry := &rankedEntryList[i].Entry
+		style := styles.entry
 
-		if m.selectedEntry != nil && m.selectedEntry.SupportsFreeText && entry == *m.selectedEntry {
-			style = styles.selected.Render(text)
+		if m.selectedEntry != nil && entry == m.selectedEntry {
+			style = styles.selected
 		}
 
-		lines = append(lines, style)
+		entryLineList[i] = style.Render(entry.DisplayText)
 	}
-	return strings.Join(lines, "\n")
+
+	// If no entries render message
+	if len(entryLineList) == 0 {
+		entryLineList = []string{styles.empty.Render("(no matches)")}
+	}
+
+	numberOfEmptyLines := availableLines - len(entryLineList)
+	lines = append(lines, make([]string, numberOfEmptyLines)...)
+	lines = append(lines, entryLineList...)
+
+	return lines
 }
 
-func (m Model) renderInput(styles uiStyles) string {
+func (m Model) appendInput(lines []string, availableLines int, styles uiStyles) []string {
 	input := m.input
 
 	// TODO make this work and lok like selection when free text active.
-	return input.View()
+
+	return append(lines, input.View())
+}
+
+func (m Model) appendMessage(lines []string, availableLines int, styles uiStyles) []string {
+	if m.message == "" {
+		return append(lines, "")
+	}
+
+	return append(lines, styles.notice.Render(m.message))
 }
 
 type uiStyles struct {
