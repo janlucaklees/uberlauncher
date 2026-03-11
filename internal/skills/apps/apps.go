@@ -109,11 +109,9 @@ func loadEntries(skillName, cacheBase string) ([]types.Entry, error) {
 		if name == "" || execCmd == "" {
 			continue
 		}
-		entry := types.Entry{
-			SkillName:   skillName,
-			EntryID:     execCmd,
-			DisplayText: name,
-		}
+		entry := types.NewEntry(skillName, execCmd)
+		entry.DisplayText = name
+
 		entries = append(entries, entry)
 	}
 	if err := scanner.Err(); err != nil {
