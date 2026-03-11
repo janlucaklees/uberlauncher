@@ -27,10 +27,9 @@ func (s *powerSkill) Name() string {
 }
 
 func (s *powerSkill) Init(ctx context.Context, runtime skill.Runtime) error {
-	entry := types.Entry{
-		SkillName: s.name,
-		EntryID:   s.name,
-	}
+	entry := types.NewEntry(s.name, s.name)
+	entry.DisplayText = s.name
+
 	runtime.PublishEntries([]types.Entry{entry})
 	return nil
 }
