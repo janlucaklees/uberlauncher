@@ -81,10 +81,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" || msg.String() == "esc" {
-			if m.errMsg != "" {
-				m.errMsg = ""
-				return m, nil
-			}
 			return m, tea.Quit
 		}
 
