@@ -26,11 +26,10 @@ func (s *Skill) Name() string {
 }
 
 func (s *Skill) Init(ctx context.Context, runtime skill.Runtime) error {
-	entry := types.Entry{
-		SkillName:        s.Name(),
-		EntryID:          s.Name(),
-		SupportsFreeText: true,
-	}
+	entry := types.NewEntry(s.Name(), s.Name())
+	entry.DisplayText = s.Name()
+	entry.SupportsFreeText = true
+
 	runtime.PublishEntries([]types.Entry{entry})
 	return nil
 }
