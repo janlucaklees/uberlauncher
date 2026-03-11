@@ -7,27 +7,28 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 
 	"uberlauncher/internal/skill"
 	"uberlauncher/internal/types"
 )
 
 type appEntry struct {
+	ID   string
 	Name string
 	Exec string
 }
 
-type Skill struct{}
+type Skill struct {
+	commands map[string]string
+}
 
 func New() skill.Skill {
-	return &Skill{}
+	return &Skill{commands: make(map[string]string)}
 }
 
 func (s *Skill) Name() string {
@@ -35,16 +36,29 @@ func (s *Skill) Name() string {
 }
 
 func (s *Skill) Init(ctx context.Context, runtime skill.Runtime) error {
-	entries, err := loadEntries(s.Name(), runtime.CacheDir())
+	cacheBase := runtime.CacheDir()
+
+	cachedApps, err := loadEntries(cacheBase)
+	if err != nil {
+		runtime.ReportError(err)
+	} else if len(cachedApps) > 0 {
+		s.setCommands(cachedApps)
+		runtime.PublishEntries(buildEntries(s.Name(), cachedApps))
+	}
+
+	refreshedApps, err := refreshCache(cacheBase)
 	if err != nil {
 		runtime.ReportError(err)
 		return nil
 	}
-	runtime.PublishEntries(entries)
 
-	if err := spawnRefreshJob(); err != nil {
-		runtime.ReportError(err)
+	if len(cachedApps) > 0 {
+		runtime.RemoveEntries(entryIDs(cachedApps))
 	}
+
+	s.setCommands(refreshedApps)
+	runtime.PublishEntries(buildEntries(s.Name(), refreshedApps))
+	runtime.Notify(fmt.Sprintf("Apps cache refreshed (%d)", len(refreshedApps)))
 	return nil
 }
 
@@ -55,7 +69,10 @@ func (s *Skill) Execute(ctx context.Context, cmd types.Command) error {
 
 	execCmd := cmd.RawInput
 	if execCmd == "" {
-		execCmd = cmd.Entry.EntryID
+		execCmd = s.commands[cmd.Entry.EntryID]
+		if execCmd == "" {
+			execCmd = cmd.Entry.EntryID
+		}
 	}
 
 	if !hasCommand("hyprctl") {
@@ -77,15 +94,15 @@ func cachePaths(base string) (string, string) {
 	return filepath.Join(base, "apps.tsv"), filepath.Join(base, "apps.hash")
 }
 
-func loadEntries(skillName, cacheBase string) ([]types.Entry, error) {
-	tsvPath, hashPath := cachePaths(cacheBase)
+func loadEntries(cacheBase string) ([]appEntry, error) {
+	tsvPath, _ := cachePaths(cacheBase)
 
 	if err := os.MkdirAll(cacheBase, 0o755); err != nil {
 		return nil, err
 	}
 
-	if err := refreshCache(tsvPath, hashPath); err != nil {
-		return nil, err
+	if !fileExists(tsvPath) {
+		return nil, nil
 	}
 
 	file, err := os.Open(tsvPath)
@@ -96,23 +113,33 @@ func loadEntries(skillName, cacheBase string) ([]types.Entry, error) {
 		_ = file.Close()
 	}()
 
-	entries := make([]types.Entry, 0)
+	entries := make([]appEntry, 0)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		parts := strings.SplitN(line, "\t", 2)
-		if len(parts) != 2 {
+		parts := strings.SplitN(line, "\t", 3)
+		if len(parts) < 2 {
 			continue
 		}
-		name := strings.TrimSpace(parts[0])
-		execCmd := strings.TrimSpace(parts[1])
+		entryID := ""
+		name := ""
+		execCmd := ""
+		if len(parts) == 2 {
+			name = strings.TrimSpace(parts[0])
+			execCmd = strings.TrimSpace(parts[1])
+			entryID = execCmd
+		} else {
+			entryID = strings.TrimSpace(parts[0])
+			name = strings.TrimSpace(parts[1])
+			execCmd = strings.TrimSpace(parts[2])
+		}
 		if name == "" || execCmd == "" {
 			continue
 		}
-		entry := types.NewEntry(skillName, execCmd)
-		entry.DisplayText = name
-
-		entries = append(entries, entry)
+		if entryID == "" {
+			entryID = execCmd
+		}
+		entries = append(entries, appEntry{ID: entryID, Name: name, Exec: execCmd})
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
@@ -121,26 +148,25 @@ func loadEntries(skillName, cacheBase string) ([]types.Entry, error) {
 	return entries, nil
 }
 
-func refreshCache(tsvPath, hashPath string) error {
+func refreshCache(cacheBase string) ([]appEntry, error) {
+	tsvPath, hashPath := cachePaths(cacheBase)
+
 	newHash, err := desktopTreeHash()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	oldHash, _ := os.ReadFile(hashPath)
-	if string(oldHash) != newHash || !fileExists(tsvPath) {
-		entries, err := listApps()
-		if err != nil {
-			return err
-		}
-		if err := writeCache(tsvPath, entries); err != nil {
-			return err
-		}
-		if err := os.WriteFile(hashPath, []byte(newHash), 0o644); err != nil {
-			return err
-		}
+	entries, err := listApps()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	if err := writeCache(tsvPath, entries); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(hashPath, []byte(newHash), 0o644); err != nil {
+		return nil, err
+	}
+	return entries, nil
 }
 
 func writeCache(path string, entries []appEntry) error {
@@ -158,12 +184,12 @@ func writeCache(path string, entries []appEntry) error {
 	w := bufio.NewWriter(file)
 	seen := make(map[string]struct{})
 	for _, entry := range entries {
-		key := entry.Name + "\t" + entry.Exec
+		key := entry.ID + "\t" + entry.Name + "\t" + entry.Exec
 		if _, ok := seen[key]; ok {
 			continue
 		}
 		seen[key] = struct{}{}
-		if _, err := fmt.Fprintf(w, "%s\t%s\n", entry.Name, entry.Exec); err != nil {
+		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\n", entry.ID, entry.Name, entry.Exec); err != nil {
 			return err
 		}
 	}
@@ -260,7 +286,7 @@ func parseDesktopFile(path string) (appEntry, bool) {
 		return appEntry{}, false
 	}
 
-	return appEntry{Name: name, Exec: execCmd}, true
+	return appEntry{ID: path, Name: name, Exec: execCmd}, true
 }
 
 func sanitizeExec(cmd string) string {
@@ -304,23 +330,6 @@ func desktopTreeHash() (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func spawnRefreshJob() error {
-	exe, err := os.Executable()
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command(exe, "__internal", "refresh-app-cache")
-	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	return cmd.Process.Release()
-}
-
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
@@ -329,4 +338,30 @@ func fileExists(path string) bool {
 func hasCommand(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
+}
+
+func buildEntries(skillName string, apps []appEntry) []types.Entry {
+	entries := make([]types.Entry, 0, len(apps))
+	for _, app := range apps {
+		entry := types.NewEntry(skillName, app.ID)
+		entry.DisplayText = app.Name
+		entries = append(entries, entry)
+	}
+	return entries
+}
+
+func entryIDs(apps []appEntry) []string {
+	ids := make([]string, 0, len(apps))
+	for _, app := range apps {
+		ids = append(ids, app.ID)
+	}
+	return ids
+}
+
+func (s *Skill) setCommands(apps []appEntry) {
+	commands := make(map[string]string, len(apps))
+	for _, app := range apps {
+		commands[app.ID] = app.Exec
+	}
+	s.commands = commands
 }
