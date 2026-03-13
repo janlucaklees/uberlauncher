@@ -138,6 +138,11 @@ func refreshCache(sc *cache.SkillCache) ([]appEntry, error) {
 		return nil, err
 	}
 
+	oldHash, _ := sc.ReadFile("apps.hash")
+	if strings.TrimSpace(string(oldHash)) == newHash {
+		return nil, nil
+	}
+
 	entries, err := listApps()
 	if err != nil {
 		return nil, err
