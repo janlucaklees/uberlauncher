@@ -11,6 +11,7 @@ import (
 	"uberlauncher/internal/runtime"
 	"uberlauncher/internal/skills"
 	"uberlauncher/internal/skills/apps"
+	"uberlauncher/internal/skills/search"
 	"uberlauncher/internal/skills/system"
 	"uberlauncher/internal/skills/todo"
 	"uberlauncher/internal/skills/wifi"
@@ -21,6 +22,7 @@ import (
 // Register your skills here.
 var skillList = []skills.Skill{
 	apps.New(),
+	search.New(),
 	todo.New(),
 	system.NewShutdown(),
 	system.NewRestart(),
