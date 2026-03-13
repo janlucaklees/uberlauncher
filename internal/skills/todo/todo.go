@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -65,8 +66,11 @@ func (s *Skill) Execute(cmd types.Command) {
 }
 
 func quickAdd(token, text string) error {
-	payload := []byte(fmt.Sprintf("{\"text\":%q}", text))
-	req, err := http.NewRequest(http.MethodPost, "https://api.todoist.com/api/v1/tasks/quick", bytes.NewBuffer(payload))
+	payload, err := json.Marshal(map[string]string{"text": text})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, "https://api.todoist.com/api/v1/tasks/quick", bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
