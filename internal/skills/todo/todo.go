@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -69,6 +70,7 @@ func quickAdd(token, text string) error {
 		return err
 	}
 	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
 	}()
 
