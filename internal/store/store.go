@@ -1,18 +1,21 @@
 package store
 
 import (
+	"sync"
+
 	"uberlauncher/internal/engines"
 	"uberlauncher/internal/types"
 )
 
 type Store struct {
-	Entries map[string]types.Entry
+	mu      sync.RWMutex
+	entries map[string]types.Entry
 	Engine  engines.Engine
 }
 
 func New(engine engines.Engine) *Store {
 	return &Store{
-		Entries: make(map[string]types.Entry),
+		entries: make(map[string]types.Entry),
 		Engine:  engine,
 	}
 }
@@ -23,13 +26,24 @@ func BuildGlobalEntryId(entry types.Entry) string {
 
 func (s *Store) UpsertEntry(entry types.Entry) {
 	id := BuildGlobalEntryId(entry)
-	s.Entries[id] = entry
+	s.mu.Lock()
+	s.entries[id] = entry
+	s.mu.Unlock()
+}
+
+func (s *Store) GetEntry(id string) (types.Entry, bool) {
+	s.mu.RLock()
+	entry, ok := s.entries[id]
+	s.mu.RUnlock()
+	return entry, ok
 }
 
 func (s *Store) GetMatches(query string) []types.Entry {
-	entries := make([]types.Entry, 0, len(s.Entries))
-	for _, e := range s.Entries {
+	s.mu.RLock()
+	entries := make([]types.Entry, 0, len(s.entries))
+	for _, e := range s.entries {
 		entries = append(entries, e)
 	}
+	s.mu.RUnlock()
 	return s.Engine.Rank(entries, query)
 }

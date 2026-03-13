@@ -105,7 +105,7 @@ func (m *Model) detectFreeText() {
 
 	first := strings.SplitN(query, " ", 2)[0]
 	id := store.BuildGlobalEntryId(types.Entry{SkillName: first, EntryID: first})
-	if entry, ok := m.runtime.Store.Entries[id]; ok && entry.SupportsFreeText {
+	if entry, ok := m.runtime.Store.GetEntry(id); ok && entry.SupportsFreeText {
 		m.selectedEntry = &entry
 	}
 }
