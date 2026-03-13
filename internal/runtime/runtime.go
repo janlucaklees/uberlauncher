@@ -82,6 +82,7 @@ func (sr *skillRuntime) UpsertEntries(e []types.Entry) { sr.r.UpsertEntries(e) }
 func (sr *skillRuntime) UpsertEntry(e types.Entry)     { sr.r.UpsertEntry(e) }
 func (sr *skillRuntime) Cache() *cache.SkillCache      { return sr.r.Cache.ForSkill(sr.skillName) }
 func (sr *skillRuntime) Go(fn func())                  { sr.r.Go(fn) }
+func (sr *skillRuntime) HasCommand(name string) bool   { _, err := exec.LookPath(name); return err == nil }
 
 func (r *Runtime) RegisterSkill(skill skills.Skill) {
 	_, ok := r.SkillMap[skill.Name()]

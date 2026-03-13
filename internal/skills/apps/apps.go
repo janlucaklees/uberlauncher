@@ -78,7 +78,7 @@ func (s *Skill) Execute(cmd types.Command) {
 	}
 
 	var err error
-	if !hasCommand("hyprctl") {
+	if !s.runtime.HasCommand("hyprctl") {
 		err = exec.Command(execCmd).Start()
 	} else {
 		err = exec.Command("hyprctl", "dispatch", "exec", execCmd).Start()
@@ -310,10 +310,6 @@ func desktopTreeHash() (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func hasCommand(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
-}
 
 func buildEntries(skillName string, apps []appEntry) []types.Entry {
 	entries := make([]types.Entry, 0, len(apps))

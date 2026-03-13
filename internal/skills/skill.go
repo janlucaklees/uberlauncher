@@ -18,4 +18,5 @@ type Runtime interface {
 	Notify(message string)
 	Cache() *cache.SkillCache
 	Go(fn func())
+	HasCommand(name string) bool
 }

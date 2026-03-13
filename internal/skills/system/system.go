@@ -37,7 +37,7 @@ func (s *powerSkill) Init(runtime skills.Runtime) {
 
 func (s *powerSkill) Execute(cmd types.Command) {
 	var err error
-	if hasCommand("systemctl") {
+	if s.runtime.HasCommand("systemctl") {
 		err = exec.Command("systemctl", s.action).Start()
 	} else {
 		switch s.action {
@@ -54,7 +54,3 @@ func (s *powerSkill) Execute(cmd types.Command) {
 	}
 }
 
-func hasCommand(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
-}

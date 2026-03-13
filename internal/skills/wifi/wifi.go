@@ -29,7 +29,7 @@ func (s *Skill) Init(runtime skills.Runtime) {
 		types.NewEntry(s.Name(), "off"),
 	}
 
-	names, _ := knownConnections()
+	names, _ := s.knownConnections()
 	for _, name := range names {
 		entries = append(entries, types.NewEntry(s.Name(), name))
 	}
@@ -38,7 +38,7 @@ func (s *Skill) Init(runtime skills.Runtime) {
 }
 
 func (s *Skill) Execute(cmd types.Command) {
-	if !hasCommand("nmcli") {
+	if !s.runtime.HasCommand("nmcli") {
 		s.runtime.ReportError(errors.New("nmcli not found"))
 		return
 	}
@@ -64,8 +64,8 @@ func (s *Skill) Execute(cmd types.Command) {
 	}
 }
 
-func knownConnections() ([]string, error) {
-	if !hasCommand("nmcli") {
+func (s *Skill) knownConnections() ([]string, error) {
+	if !s.runtime.HasCommand("nmcli") {
 		return nil, errors.New("nmcli not found")
 	}
 	cmd := exec.Command("nmcli", "-t", "-f", "NAME,TYPE", "connection", "show")
@@ -93,7 +93,3 @@ func knownConnections() ([]string, error) {
 	return names, nil
 }
 
-func hasCommand(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
-}
