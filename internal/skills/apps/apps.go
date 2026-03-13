@@ -49,14 +49,18 @@ func (s *Skill) Init(runtime skills.Runtime) {
 		runtime.UpsertEntries(buildEntries(s.Name(), cachedApps))
 	}
 
-	refreshedApps, err := refreshCache(sc)
-	if err != nil {
-		runtime.ReportError(err)
-		return
-	}
-
-	s.setCommands(refreshedApps)
-	runtime.UpsertEntries(buildEntries(s.Name(), refreshedApps))
+	runtime.Go(func() {
+		refreshedApps, err := refreshCache(sc)
+		if err != nil {
+			runtime.ReportError(err)
+			return
+		}
+		if refreshedApps == nil {
+			return // hash unchanged, cache still valid
+		}
+		s.setCommands(refreshedApps)
+		runtime.UpsertEntries(buildEntries(s.Name(), refreshedApps))
+	})
 }
 
 func (s *Skill) Execute(cmd types.Command) {

@@ -17,4 +17,5 @@ type Runtime interface {
 	UpsertEntry(entry types.Entry)
 	Notify(message string)
 	Cache() *cache.SkillCache
+	Go(fn func())
 }

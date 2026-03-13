@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"fmt"
+	"os/exec"
+	"sync"
 
 	"uberlauncher/internal/cache"
 	"uberlauncher/internal/skills"
@@ -14,6 +16,7 @@ type Runtime struct {
 	Store         *store.Store
 	SkillMap      map[string]skills.Skill
 	Channel       chan Event
+	wg            sync.WaitGroup
 	isInitialized bool
 }
 
@@ -26,6 +29,19 @@ func New(cache *cache.Cache, store *store.Store) *Runtime {
 	}
 
 	return &r
+}
+
+// Wait blocks until all background tasks started via Go have completed.
+func (r *Runtime) Wait() {
+	r.wg.Wait()
+}
+
+func (r *Runtime) Go(fn func()) {
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		fn()
+	}()
 }
 
 func (r *Runtime) Init(skills []skills.Skill) {
@@ -65,6 +81,7 @@ func (sr *skillRuntime) Notify(message string) {
 func (sr *skillRuntime) UpsertEntries(e []types.Entry) { sr.r.UpsertEntries(e) }
 func (sr *skillRuntime) UpsertEntry(e types.Entry)     { sr.r.UpsertEntry(e) }
 func (sr *skillRuntime) Cache() *cache.SkillCache      { return sr.r.Cache.ForSkill(sr.skillName) }
+func (sr *skillRuntime) Go(fn func())                  { sr.r.Go(fn) }
 
 func (r *Runtime) RegisterSkill(skill skills.Skill) {
 	_, ok := r.SkillMap[skill.Name()]
