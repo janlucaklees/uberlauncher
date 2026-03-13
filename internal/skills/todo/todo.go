@@ -15,7 +15,9 @@ import (
 	"uberlauncher/internal/types"
 )
 
-type Skill struct{}
+type Skill struct {
+	runtime skills.Runtime
+}
 
 func New() skills.Skill {
 	return &Skill{}
@@ -25,23 +27,26 @@ func (s *Skill) Name() string {
 	return "todo"
 }
 
-func (s *Skill) Init(runtime skills.Runtime) error {
+func (s *Skill) Init(runtime skills.Runtime) {
+	s.runtime = runtime
+
 	entry := types.NewEntry(s.Name(), s.Name())
 	entry.DisplayText = s.Name()
 	entry.SupportsFreeText = true
 
 	runtime.UpsertEntries([]types.Entry{entry})
-	return nil
 }
 
-func (s *Skill) Execute(cmd types.Command) error {
+func (s *Skill) Execute(cmd types.Command) {
 	text := strings.TrimSpace(cmd.RawInput)
 	if !strings.HasPrefix(text, "todo ") {
-		return errors.New("todo input must start with 'todo '")
+		s.runtime.ReportError(errors.New("todo input must start with 'todo '"))
+		return
 	}
 	text = strings.TrimSpace(strings.TrimPrefix(text, "todo "))
 	if text == "" {
-		return errors.New("todo text is empty")
+		s.runtime.ReportError(errors.New("todo text is empty"))
+		return
 	}
 
 	token := os.Getenv("TODOIST_API_TOKEN")
@@ -50,10 +55,13 @@ func (s *Skill) Execute(cmd types.Command) error {
 		token = os.Getenv("TODOIST_API_TOKEN")
 	}
 	if token == "" {
-		return errors.New("TODOIST_API_TOKEN not set")
+		s.runtime.ReportError(errors.New("TODOIST_API_TOKEN not set"))
+		return
 	}
 
-	return quickAdd(token, text)
+	if err := quickAdd(token, text); err != nil {
+		s.runtime.ReportError(err)
+	}
 }
 
 func quickAdd(token, text string) error {

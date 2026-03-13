@@ -126,10 +126,7 @@ func (m *Model) handleEnter() (tea.Model, tea.Cmd) {
 		RawInput: m.input.Value(),
 	}
 
-	if err := skill.Execute(cmd); err != nil {
-		m.message = err.Error()
-		return *m, nil
-	}
+	skill.Execute(cmd)
 
 	return *m, tea.Quit
 }

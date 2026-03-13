@@ -25,6 +25,7 @@ type appEntry struct {
 }
 
 type Skill struct {
+	runtime  skills.Runtime
 	commands map[string]string
 }
 
@@ -36,7 +37,8 @@ func (s *Skill) Name() string {
 	return "apps"
 }
 
-func (s *Skill) Init(runtime skills.Runtime) error {
+func (s *Skill) Init(runtime skills.Runtime) {
+	s.runtime = runtime
 	sc := runtime.Cache()
 
 	cachedApps, err := loadEntries(sc)
@@ -50,17 +52,17 @@ func (s *Skill) Init(runtime skills.Runtime) error {
 	refreshedApps, err := refreshCache(sc)
 	if err != nil {
 		runtime.ReportError(err)
-		return nil
+		return
 	}
 
 	s.setCommands(refreshedApps)
 	runtime.UpsertEntries(buildEntries(s.Name(), refreshedApps))
-	return nil
 }
 
-func (s *Skill) Execute(cmd types.Command) error {
+func (s *Skill) Execute(cmd types.Command) {
 	if cmd.RawInput == "" && cmd.Entry.EntryID == "" {
-		return errors.New("missing app entry")
+		s.runtime.ReportError(errors.New("missing app entry"))
+		return
 	}
 
 	execCmd := cmd.RawInput
@@ -71,11 +73,15 @@ func (s *Skill) Execute(cmd types.Command) error {
 		}
 	}
 
+	var err error
 	if !hasCommand("hyprctl") {
-		return exec.Command(execCmd).Start()
+		err = exec.Command(execCmd).Start()
+	} else {
+		err = exec.Command("hyprctl", "dispatch", "exec", execCmd).Start()
 	}
-
-	return exec.Command("hyprctl", "dispatch", "exec", execCmd).Start()
+	if err != nil {
+		s.runtime.ReportError(err)
+	}
 }
 
 func loadEntries(sc *cache.SkillCache) ([]appEntry, error) {

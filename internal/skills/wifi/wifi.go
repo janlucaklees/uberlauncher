@@ -9,7 +9,9 @@ import (
 	"uberlauncher/internal/types"
 )
 
-type Skill struct{}
+type Skill struct {
+	runtime skills.Runtime
+}
 
 func New() skills.Skill {
 	return &Skill{}
@@ -19,7 +21,9 @@ func (s *Skill) Name() string {
 	return "wifi"
 }
 
-func (s *Skill) Init(runtime skills.Runtime) error {
+func (s *Skill) Init(runtime skills.Runtime) {
+	s.runtime = runtime
+
 	entries := []types.Entry{
 		types.NewEntry(s.Name(), "on"),
 		types.NewEntry(s.Name(), "off"),
@@ -31,27 +35,32 @@ func (s *Skill) Init(runtime skills.Runtime) error {
 	}
 
 	runtime.UpsertEntries(entries)
-	return nil
 }
 
-func (s *Skill) Execute(cmd types.Command) error {
+func (s *Skill) Execute(cmd types.Command) {
 	if !hasCommand("nmcli") {
-		return errors.New("nmcli not found")
+		s.runtime.ReportError(errors.New("nmcli not found"))
+		return
 	}
 
 	action := strings.TrimSpace(cmd.Entry.EntryID)
 	action = strings.TrimPrefix(action, "wifi ")
 
+	var err error
 	switch action {
 	case "on":
-		return exec.Command("nmcli", "radio", "wifi", "on").Run()
+		err = exec.Command("nmcli", "radio", "wifi", "on").Run()
 	case "off":
-		return exec.Command("nmcli", "radio", "wifi", "off").Run()
+		err = exec.Command("nmcli", "radio", "wifi", "off").Run()
 	default:
 		if action == "" {
-			return errors.New("missing wifi action")
+			s.runtime.ReportError(errors.New("missing wifi action"))
+			return
 		}
-		return exec.Command("nmcli", "connection", "up", "id", action).Run()
+		err = exec.Command("nmcli", "connection", "up", "id", action).Run()
+	}
+	if err != nil {
+		s.runtime.ReportError(err)
 	}
 }
 

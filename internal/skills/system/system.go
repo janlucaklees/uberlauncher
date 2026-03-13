@@ -9,8 +9,9 @@ import (
 )
 
 type powerSkill struct {
-	name   string
-	action string
+	runtime skills.Runtime
+	name    string
+	action  string
 }
 
 func NewShutdown() skills.Skill {
@@ -25,26 +26,31 @@ func (s *powerSkill) Name() string {
 	return s.name
 }
 
-func (s *powerSkill) Init(runtime skills.Runtime) error {
+func (s *powerSkill) Init(runtime skills.Runtime) {
+	s.runtime = runtime
+
 	entry := types.NewEntry(s.name, s.name)
 	entry.DisplayText = s.name
 
 	runtime.UpsertEntries([]types.Entry{entry})
-	return nil
 }
 
-func (s *powerSkill) Execute(cmd types.Command) error {
+func (s *powerSkill) Execute(cmd types.Command) {
+	var err error
 	if hasCommand("systemctl") {
-		return exec.Command("systemctl", s.action).Start()
+		err = exec.Command("systemctl", s.action).Start()
+	} else {
+		switch s.action {
+		case "poweroff":
+			err = exec.Command("shutdown", "-h", "now").Start()
+		case "reboot":
+			err = exec.Command("shutdown", "-r", "now").Start()
+		default:
+			err = errors.New("unknown system action")
+		}
 	}
-
-	switch s.action {
-	case "poweroff":
-		return exec.Command("shutdown", "-h", "now").Start()
-	case "reboot":
-		return exec.Command("shutdown", "-r", "now").Start()
-	default:
-		return errors.New("unknown system action")
+	if err != nil {
+		s.runtime.ReportError(err)
 	}
 }
 
