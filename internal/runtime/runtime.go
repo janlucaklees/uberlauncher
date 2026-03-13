@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"uberlauncher/internal/cache"
+	"uberlauncher/internal/notify"
 	"uberlauncher/internal/skills"
 	"uberlauncher/internal/store"
 	"uberlauncher/internal/types"
@@ -75,8 +76,11 @@ type skillRuntime struct {
 }
 
 func (sr *skillRuntime) ReportError(err error) { sr.r.ReportError(err) }
-func (sr *skillRuntime) Notify(message string) {
+func (sr *skillRuntime) ReportMessage(message string) {
 	sr.r.Channel <- Event{Type: EventMessage, Message: message}
+}
+func (sr *skillRuntime) SendNotification(message string) {
+	_ = notify.Send(sr.skillName, message)
 }
 func (sr *skillRuntime) UpsertEntries(e []types.Entry) { sr.r.UpsertEntries(e) }
 func (sr *skillRuntime) UpsertEntry(e types.Entry)     { sr.r.UpsertEntry(e) }

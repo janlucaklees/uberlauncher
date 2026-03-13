@@ -15,7 +15,8 @@ type Runtime interface {
 	ReportError(err error)
 	UpsertEntries(entries []types.Entry)
 	UpsertEntry(entry types.Entry)
-	Notify(message string)
+	ReportMessage(message string)
+	SendNotification(message string)
 	Cache() *cache.SkillCache
 	Go(fn func())
 	HasCommand(name string) bool

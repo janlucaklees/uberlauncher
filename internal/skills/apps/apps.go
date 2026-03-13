@@ -56,10 +56,12 @@ func (s *Skill) Init(runtime skills.Runtime) {
 			return
 		}
 		if refreshedApps == nil {
-			return // hash unchanged, cache still valid
+			runtime.SendNotification("Apps cache up to date")
+			return
 		}
 		s.setCommands(refreshedApps)
 		runtime.UpsertEntries(buildEntries(s.Name(), refreshedApps))
+		runtime.SendNotification(fmt.Sprintf("Apps cache refreshed (%d apps)", len(refreshedApps)))
 	})
 }
 
