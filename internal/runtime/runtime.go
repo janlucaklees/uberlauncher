@@ -10,10 +10,11 @@ import (
 )
 
 type Runtime struct {
-	Cache    *cache.Cache
-	Store    *store.Store
-	SkillMap map[string]skills.Skill
-	Channel  chan Event
+	Cache         *cache.Cache
+	Store         *store.Store
+	SkillMap      map[string]skills.Skill
+	Channel       chan Event
+	isInitialized bool
 }
 
 func New(cache *cache.Cache, store *store.Store) *Runtime {
@@ -25,6 +26,13 @@ func New(cache *cache.Cache, store *store.Store) *Runtime {
 	}
 
 	return &r
+}
+
+func (r *Runtime) Init(skills []skills.Skill) {
+	for _, skill := range skills {
+		r.RegisterSkill(skill)
+	}
+	r.isInitialized = true
 }
 
 func (r *Runtime) ReportError(err error) {
@@ -39,7 +47,10 @@ func (r *Runtime) UpsertEntries(entries []types.Entry) {
 
 func (r *Runtime) UpsertEntry(entry types.Entry) {
 	r.Store.UpsertEntry(entry)
-	r.Channel <- Event{Type: EventEntries}
+
+	if r.isInitialized {
+		r.Channel <- Event{Type: EventNewEntry}
+	}
 }
 
 type skillRuntime struct {
@@ -49,7 +60,7 @@ type skillRuntime struct {
 
 func (sr *skillRuntime) ReportError(err error) { sr.r.ReportError(err) }
 func (sr *skillRuntime) Notify(message string) {
-	sr.r.Channel <- Event{Type: EventNotify, Message: message}
+	sr.r.Channel <- Event{Type: EventMessage, Message: message}
 }
 func (sr *skillRuntime) UpsertEntries(e []types.Entry) { sr.r.UpsertEntries(e) }
 func (sr *skillRuntime) UpsertEntry(e types.Entry)     { sr.r.UpsertEntry(e) }
@@ -63,12 +74,7 @@ func (r *Runtime) RegisterSkill(skill skills.Skill) {
 		return
 	}
 
-	err := skill.Init(&skillRuntime{r: r, skillName: skill.Name()})
-
-	if err != nil {
-		r.ReportError(fmt.Errorf("skill %q init failed: %w", skill.Name(), err))
-		return
-	}
+	skill.Init(&skillRuntime{r: r, skillName: skill.Name()})
 
 	r.SkillMap[skill.Name()] = skill
 }

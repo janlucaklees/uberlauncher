@@ -51,9 +51,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case eventMsg:
 		switch msg.Type {
-		case runtime.EventEntries:
+		case runtime.EventNewEntry:
 			m.refreshEntries()
-		case runtime.EventNotify:
+		case runtime.EventMessage:
 			m.message = msg.Message
 		case runtime.EventError:
 			if msg.Err != nil {

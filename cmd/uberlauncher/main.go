@@ -39,10 +39,7 @@ func main() {
 	store := store.New(engine)
 
 	runtime := runtime.New(cache, store)
-
-	for _, skill := range skillList {
-		runtime.RegisterSkill(skill)
-	}
+	runtime.Init(skillList)
 
 	model := ui.New(runtime)
 	program := tea.NewProgram(model, tea.WithAltScreen())
