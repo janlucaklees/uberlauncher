@@ -10,6 +10,7 @@ const (
 	EventError
 )
 
+// Todo use general Payload field and implement different kinds of payload
 type Event struct {
 	Type    EventType
 	Entries []types.Entry

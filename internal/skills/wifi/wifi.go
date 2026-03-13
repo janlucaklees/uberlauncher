@@ -1,18 +1,17 @@
 package wifi
 
 import (
-	"context"
 	"errors"
 	"os/exec"
 	"strings"
 
-	"uberlauncher/internal/skill"
+	"uberlauncher/internal/skills"
 	"uberlauncher/internal/types"
 )
 
 type Skill struct{}
 
-func New() skill.Skill {
+func New() skills.Skill {
 	return &Skill{}
 }
 
@@ -20,7 +19,7 @@ func (s *Skill) Name() string {
 	return "wifi"
 }
 
-func (s *Skill) Init(ctx context.Context, runtime skill.Runtime) error {
+func (s *Skill) Init(runtime skills.Runtime) error {
 	entries := []types.Entry{
 		types.NewEntry(s.Name(), "on"),
 		types.NewEntry(s.Name(), "off"),
@@ -31,11 +30,11 @@ func (s *Skill) Init(ctx context.Context, runtime skill.Runtime) error {
 		entries = append(entries, types.NewEntry(s.Name(), name))
 	}
 
-	runtime.PublishEntries(entries)
+	runtime.UpsertEntries(entries)
 	return nil
 }
 
-func (s *Skill) Execute(ctx context.Context, cmd types.Command) error {
+func (s *Skill) Execute(cmd types.Command) error {
 	if !hasCommand("nmcli") {
 		return errors.New("nmcli not found")
 	}
@@ -45,14 +44,14 @@ func (s *Skill) Execute(ctx context.Context, cmd types.Command) error {
 
 	switch action {
 	case "on":
-		return exec.CommandContext(ctx, "nmcli", "radio", "wifi", "on").Run()
+		return exec.Command("nmcli", "radio", "wifi", "on").Run()
 	case "off":
-		return exec.CommandContext(ctx, "nmcli", "radio", "wifi", "off").Run()
+		return exec.Command("nmcli", "radio", "wifi", "off").Run()
 	default:
 		if action == "" {
 			return errors.New("missing wifi action")
 		}
-		return exec.CommandContext(ctx, "nmcli", "connection", "up", "id", action).Run()
+		return exec.Command("nmcli", "connection", "up", "id", action).Run()
 	}
 }
 

@@ -1,0 +1,65 @@
+package cache
+
+import (
+	"os"
+	"path/filepath"
+)
+
+type Cache struct {
+	path string
+}
+
+func New() (*Cache, error) {
+	base, err := os.UserCacheDir()
+	if err != nil {
+		base = os.TempDir()
+	}
+
+	path := filepath.Join(base, "uberlauncher")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		return nil, err
+	}
+
+	return &Cache{path: path}, nil
+}
+
+func (c *Cache) RootPath() string {
+	return c.path
+}
+
+func (c *Cache) NameSpacePath(namespace string) string {
+	return filepath.Join(c.RootPath(), namespace)
+}
+
+func (c *Cache) WriteFile(namespace, filename string, data []byte) error {
+	dir := c.NameSpacePath(namespace)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, filename), data, 0o644)
+}
+
+func (c *Cache) ReadFile(namespace, filename string) ([]byte, error) {
+	return os.ReadFile(filepath.Join(c.NameSpacePath(namespace), filename))
+}
+
+type SkillCache struct {
+	cache     *Cache
+	namespace string
+}
+
+func (c *Cache) ForSkill(skillName string) *SkillCache {
+	return &SkillCache{cache: c, namespace: skillName}
+}
+
+func (sc *SkillCache) Path() string {
+	return sc.cache.NameSpacePath(sc.namespace)
+}
+
+func (sc *SkillCache) WriteFile(filename string, data []byte) error {
+	return sc.cache.WriteFile(sc.namespace, filename, data)
+}
+
+func (sc *SkillCache) ReadFile(filename string) ([]byte, error) {
+	return sc.cache.ReadFile(sc.namespace, filename)
+}

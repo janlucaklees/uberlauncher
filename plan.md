@@ -215,9 +215,9 @@ type Skill interface {
 
     Manifest() SkillManifest
 
-    Start(ctx context.Context, runtime SkillRuntime) error
+    Start(runtime SkillRuntime) error
 
-    Execute(ctx context.Context, cmd RunCommandDTO) error
+    Execute(cmd RunCommandDTO) error
 
     Stop(ctx context.Context) error
 }

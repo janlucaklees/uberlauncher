@@ -7,51 +7,36 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"uberlauncher/internal/ranking"
 	"uberlauncher/internal/runtime"
-	"uberlauncher/internal/skill"
 	"uberlauncher/internal/store"
 	"uberlauncher/internal/types"
 )
 
-type executeFn func(cmd types.Command) error
-
 type Model struct {
 	input         textinput.Model
-	store         *store.Store
-	usage         *ranking.UsageStore
-	events        <-chan runtime.Event
-	execute       executeFn
-	skillMap      map[string]skill.Skill
-	ranked        []ranking.RankedEntry
+	runtime       *runtime.Runtime
+	ranked        []types.Entry
 	selectedEntry *types.Entry
-	userSelected  bool
 	message       string
 	height        int
 }
 
-func New(skillMap map[string]skill.Skill, store *store.Store, usage *ranking.UsageStore, events <-chan runtime.Event, exec executeFn) Model {
+func New(rt *runtime.Runtime) Model {
 	input := textinput.New()
 	input.Placeholder = ""
 	input.Prompt = "> "
 	input.Focus()
 
 	m := Model{
-		input:         input,
-		store:         store,
-		usage:         usage,
-		events:        events,
-		execute:       exec,
-		skillMap:      skillMap,
-		selectedEntry: nil,
-		userSelected:  false,
+		input:   input,
+		runtime: rt,
 	}
 	m.refreshEntries()
 	return m
 }
 
 func (m Model) Init() tea.Cmd {
-	return waitForEvent(m.events)
+	return waitForEvent(m.runtime.Channel)
 }
 
 type eventMsg runtime.Event
@@ -75,7 +60,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.message = msg.Err.Error()
 			}
 		}
-		return m, waitForEvent(m.events)
+		return m, waitForEvent(m.runtime.Channel)
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		return m, nil
@@ -108,8 +93,7 @@ func (m *Model) onInputChanged() {
 }
 
 func (m *Model) refreshEntries() {
-	entries := m.store.ListAll()
-	m.ranked = ranking.RankEntries(m.input.Value(), entries, m.usage)
+	m.ranked = m.runtime.Store.GetMatches(m.input.Value())
 }
 
 func (m *Model) detectFreeText() {
@@ -120,12 +104,8 @@ func (m *Model) detectFreeText() {
 	}
 
 	first := strings.SplitN(query, " ", 2)[0]
-	entry, ok := m.store.Get(store.EntryKey{
-		SkillName: first,
-		EntryID:   first,
-	})
-
-	if ok && entry.SupportsFreeText {
+	id := store.BuildGlobalEntryId(types.Entry{SkillName: first, EntryID: first})
+	if entry, ok := m.runtime.Store.Entries[id]; ok && entry.SupportsFreeText {
 		m.selectedEntry = &entry
 	}
 }
@@ -135,12 +115,18 @@ func (m *Model) handleEnter() (tea.Model, tea.Cmd) {
 		return *m, nil
 	}
 
+	skill, ok := m.runtime.SkillMap[m.selectedEntry.SkillName]
+	if !ok {
+		m.message = "skill not found: " + m.selectedEntry.SkillName
+		return *m, nil
+	}
+
 	cmd := types.Command{
 		Entry:    *m.selectedEntry,
 		RawInput: m.input.Value(),
 	}
 
-	if err := m.execute(cmd); err != nil {
+	if err := skill.Execute(cmd); err != nil {
 		m.message = err.Error()
 		return *m, nil
 	}
@@ -165,19 +151,21 @@ func (m Model) View() string {
 }
 
 func (m Model) appendEntries(lines []string, availableLines int, styles uiStyles) []string {
-	rankedEntryList := m.ranked
+	entries := m.ranked
 
 	// Shorten the list of entries to the available height
-	if len(rankedEntryList) > availableLines {
-		rankedEntryList = rankedEntryList[:availableLines]
+	if len(entries) > availableLines {
+		entries = entries[:availableLines]
 	}
 
-	entryLineList := make([]string, len(rankedEntryList))
-	for i := range rankedEntryList {
-		entry := &rankedEntryList[i].Entry
+	entryLineList := make([]string, len(entries))
+	for i := range entries {
+		entry := &entries[i]
 		style := styles.entry
 
-		if m.selectedEntry != nil && entry == m.selectedEntry {
+		if m.selectedEntry != nil &&
+			entry.SkillName == m.selectedEntry.SkillName &&
+			entry.EntryID == m.selectedEntry.EntryID {
 			style = styles.selected
 		}
 
@@ -199,7 +187,7 @@ func (m Model) appendEntries(lines []string, availableLines int, styles uiStyles
 func (m Model) appendInput(lines []string, availableLines int, styles uiStyles) []string {
 	input := m.input
 
-	// TODO make this work and lok like selection when free text active.
+	// TODO make this work and look like selection when free text active.
 
 	return append(lines, input.View())
 }

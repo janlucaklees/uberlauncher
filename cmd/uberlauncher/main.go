@@ -1,19 +1,25 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 
-	"uberlauncher/internal/core"
-	"uberlauncher/internal/skill"
+	tea "github.com/charmbracelet/bubbletea"
+
+	"uberlauncher/internal/cache"
+	"uberlauncher/internal/engines"
+	"uberlauncher/internal/runtime"
+	"uberlauncher/internal/skills"
 	"uberlauncher/internal/skills/apps"
 	"uberlauncher/internal/skills/system"
 	"uberlauncher/internal/skills/todo"
 	"uberlauncher/internal/skills/wifi"
+	"uberlauncher/internal/store"
+	"uberlauncher/internal/ui"
 )
 
-var skills = []skill.Skill{
+// Register your skills here.
+var skillList = []skills.Skill{
 	apps.New(),
 	todo.New(),
 	system.NewShutdown(),
@@ -22,8 +28,27 @@ var skills = []skill.Skill{
 }
 
 func main() {
-	if err := core.Run(context.Background(), skills); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	cache, err := cache.New()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize cache: %v\n", err)
 		os.Exit(1)
+	}
+
+	engine := engines.New()
+
+	store := store.New(engine)
+
+	runtime := runtime.New(cache, store)
+
+	for _, skill := range skillList {
+		runtime.RegisterSkill(skill)
+	}
+
+	model := ui.New(runtime)
+	program := tea.NewProgram(model, tea.WithAltScreen())
+	_, err = program.Run()
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
 }

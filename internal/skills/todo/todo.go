@@ -3,7 +3,6 @@ package todo
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,13 +10,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"uberlauncher/internal/skill"
+	"uberlauncher/internal/skills"
 	"uberlauncher/internal/types"
 )
 
 type Skill struct{}
 
-func New() skill.Skill {
+func New() skills.Skill {
 	return &Skill{}
 }
 
@@ -25,16 +24,16 @@ func (s *Skill) Name() string {
 	return "todo"
 }
 
-func (s *Skill) Init(ctx context.Context, runtime skill.Runtime) error {
+func (s *Skill) Init(runtime skills.Runtime) error {
 	entry := types.NewEntry(s.Name(), s.Name())
 	entry.DisplayText = s.Name()
 	entry.SupportsFreeText = true
 
-	runtime.PublishEntries([]types.Entry{entry})
+	runtime.UpsertEntries([]types.Entry{entry})
 	return nil
 }
 
-func (s *Skill) Execute(ctx context.Context, cmd types.Command) error {
+func (s *Skill) Execute(cmd types.Command) error {
 	text := strings.TrimSpace(cmd.RawInput)
 	if !strings.HasPrefix(text, "todo ") {
 		return errors.New("todo input must start with 'todo '")
@@ -53,12 +52,12 @@ func (s *Skill) Execute(ctx context.Context, cmd types.Command) error {
 		return errors.New("TODOIST_API_TOKEN not set")
 	}
 
-	return quickAdd(ctx, token, text)
+	return quickAdd(token, text)
 }
 
-func quickAdd(ctx context.Context, token, text string) error {
+func quickAdd(token, text string) error {
 	payload := []byte(fmt.Sprintf("{\"text\":%q}", text))
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.todoist.com/api/v1/tasks/quick", bytes.NewBuffer(payload))
+	req, err := http.NewRequest(http.MethodPost, "https://api.todoist.com/api/v1/tasks/quick", bytes.NewBuffer(payload))
 	if err != nil {
 		return err
 	}

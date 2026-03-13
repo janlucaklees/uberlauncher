@@ -1,5 +1,5 @@
 # Go build output
-uberlauncher
+/uberlauncher
 bin/
 dist/
 *.exe
