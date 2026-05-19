@@ -1,218 +1,159 @@
 package ui
 
 import (
-	"strings"
-
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-
-	"uberlauncher/internal/runtime"
+	"fmt"
+	"uberlauncher/internal/entry"
+	"uberlauncher/internal/notifier"
 	"uberlauncher/internal/store"
-	"uberlauncher/internal/types"
+
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 )
 
-type Model struct {
-	input         textinput.Model
-	runtime       *runtime.Runtime
-	ranked        []types.Entry
-	selectedEntry *types.Entry
-	message       string
-	height        int
+type Direction int
+
+const (
+	Up   Direction = 1
+	None Direction = 0
+	Down Direction = -1
+)
+
+type model struct {
+	entries  []entry.Entry
+	input    textinput.Model
+	cursor   int
+	message  string
+	store    *store.Store
+	notifier *notifier.Notifier
 }
 
-func New(rt *runtime.Runtime) Model {
-	input := textinput.New()
-	input.Placeholder = ""
-	input.Prompt = "> "
-	input.Focus()
+func New(st *store.Store, n *notifier.Notifier) model {
+	i := textinput.New()
+	i.Prompt = "> "
+	i.Placeholder = ""
+	i.Focus()
 
-	m := Model{
-		input:   input,
-		runtime: rt,
+	return model{
+		entries:  st.GetMatches(""),
+		input:    i,
+		cursor:   1,
+		store:    st,
+		notifier: n,
 	}
-	m.refreshEntries()
-	return m
 }
 
-func (m Model) Init() tea.Cmd {
-	return waitForEvent(m.runtime.Channel)
-}
-
-type eventMsg runtime.Event
-
-func waitForEvent(ch <-chan runtime.Event) tea.Cmd {
+func waitForNotifierEvent(ch <-chan notifier.Event) tea.Cmd {
 	return func() tea.Msg {
-		return eventMsg(<-ch)
+		return <-ch
 	}
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case eventMsg:
-		switch msg.Type {
-		case runtime.EventNewEntry:
-			m.refreshEntries()
-		case runtime.EventMessage:
-			m.message = msg.Message
-		case runtime.EventError:
-			if msg.Err != nil {
-				m.message = msg.Err.Error()
-			}
-		}
-		return m, waitForEvent(m.runtime.Channel)
-	case tea.WindowSizeMsg:
-		m.height = msg.Height
-		return m, nil
-	case tea.KeyMsg:
-		if msg.String() == "ctrl+c" || msg.String() == "esc" {
-			return m, tea.Quit
-		}
+func (m model) Init() tea.Cmd {
+	return waitForNotifierEvent(m.notifier.Events)
+}
 
-		switch msg.String() {
-		case "up":
-			// Todo: implement
-			return m, nil
-		case "down":
-			// Todo: implement
-			return m, nil
-		case "enter":
-			return m.handleEnter()
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	switch msg := msg.(type) {
+
+	case notifier.Event:
+		switch msg.Type {
+		case notifier.EventError:
+			m.message = msg.Err.Error()
+		case notifier.EventMessage:
+			m.message = msg.Message
+		}
+		return m, waitForNotifierEvent(m.notifier.Events)
+
+	case tea.KeyMsg:
+		switch key := msg.Key(); key.Code {
+
+		case tea.KeyEscape:
+			return m.quit()
+
+		case tea.KeyUp:
+			m.updateCursor(Up)
+
+		case tea.KeyDown:
+			m.updateCursor(Down)
+
+		case tea.KeyEnter:
+			selected := m.getSelectedEntry()
+			if selected != nil {
+				selected.Run(entry.Context{Input: m.input.Value()})
+			}
+
+		default:
+			m.input, cmd = m.input.Update(msg)
+			m.entries = m.store.GetMatches(m.input.Value())
+			if m.cursor > len(m.entries) {
+				m.cursor = len(m.entries)
+			}
+			m.updateCursor(None)
 		}
 	}
 
-	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(msg)
-	m.onInputChanged()
 	return m, cmd
 }
 
-func (m *Model) onInputChanged() {
-	m.refreshEntries()
-	m.detectFreeText()
+func (m model) quit() (tea.Model, tea.Cmd) {
+	return m, tea.Quit
 }
 
-func (m *Model) refreshEntries() {
-	m.ranked = m.runtime.Store.GetMatches(m.input.Value())
+func (m model) getSelectedEntry() *entry.Entry {
+	if m.cursor == 0 {
+		return nil
+	}
+	return &m.entries[m.cursor-1]
 }
 
-func (m *Model) detectFreeText() {
-	query := m.input.Value()
+func (m *model) updateCursor(d Direction) {
+	first := 0
+	last := min(10, len(m.entries))
 
-	if !strings.Contains(query, " ") {
-		return
-	}
-
-	first := strings.SplitN(query, " ", 2)[0]
-	id := store.BuildGlobalEntryId(types.Entry{SkillName: first, EntryID: first})
-	if entry, ok := m.runtime.Store.GetEntry(id); ok && entry.SupportsFreeText {
-		m.selectedEntry = &entry
+	m.cursor += int(d)
+	if m.cursor < first {
+		m.cursor = last
+	} else if m.cursor > last {
+		m.cursor = first
 	}
 }
 
-func (m *Model) handleEnter() (tea.Model, tea.Cmd) {
-	if m.selectedEntry == nil {
-		return *m, nil
+func (m model) View() tea.View {
+	s := ""
+	s += renderEntries(m.entries, m.cursor)
+	s += renderEntry(m.input.View(), m.cursor == 0)
+	if m.message != "" {
+		s += fmt.Sprintf("  %s\n", m.message)
 	}
-
-	skill, ok := m.runtime.SkillMap[m.selectedEntry.SkillName]
-	if !ok {
-		m.message = "skill not found: " + m.selectedEntry.SkillName
-		return *m, nil
-	}
-
-	cmd := types.Command{
-		Entry:    *m.selectedEntry,
-		RawInput: m.input.Value(),
-	}
-
-	skill.Execute(cmd)
-
-	return *m, tea.Quit
+	return tea.NewView(s)
 }
 
-func (m Model) View() string {
-	styles := defaultStyles
+func renderEntries(entries []entry.Entry, cursor int) string {
+	const maxEntries = 10
 
-	if m.height <= 3 {
-		return styles.empty.Render("(no space)")
+	if len(entries) > maxEntries {
+		entries = entries[:maxEntries]
 	}
 
-	lines := make([]string, 0)
+	var s string
 
-	lines = m.appendEntries(lines, m.height-2, styles)
-	lines = m.appendInput(lines, 1, styles)
-	lines = m.appendMessage(lines, 1, styles)
-
-	return strings.Join(lines, "\n")
-}
-
-func (m Model) appendEntries(lines []string, availableLines int, styles uiStyles) []string {
-	entries := m.ranked
-
-	// Shorten the list of entries to the available height
-	if len(entries) > availableLines {
-		entries = entries[:availableLines]
+	for i := 0; i < maxEntries-len(entries); i++ {
+		s += "\n"
 	}
 
-	entryLineList := make([]string, len(entries))
-	for i := range entries {
-		entry := &entries[i]
-		style := styles.entry
-
-		if m.selectedEntry != nil &&
-			entry.SkillName == m.selectedEntry.SkillName &&
-			entry.EntryID == m.selectedEntry.EntryID {
-			style = styles.selected
-		}
-
-		entryLineList[i] = style.Render(entry.DisplayText)
+	for i := len(entries) - 1; i >= 0; i-- {
+		s += renderEntry(entries[i].Label, i+1 == cursor)
 	}
 
-	// If no entries render message
-	if len(entryLineList) == 0 {
-		entryLineList = []string{styles.empty.Render("(no matches)")}
+	return s
+}
+
+func renderEntry(entry string, isSelected bool) string {
+	cursor := "  "
+	if isSelected {
+		cursor = "| "
 	}
-
-	numberOfEmptyLines := availableLines - len(entryLineList)
-	lines = append(lines, make([]string, numberOfEmptyLines)...)
-	lines = append(lines, entryLineList...)
-
-	return lines
-}
-
-func (m Model) appendInput(lines []string, availableLines int, styles uiStyles) []string {
-	input := m.input
-
-	// TODO make this work and look like selection when free text active.
-
-	return append(lines, input.View())
-}
-
-func (m Model) appendMessage(lines []string, availableLines int, styles uiStyles) []string {
-	if m.message == "" {
-		return append(lines, "")
-	}
-
-	return append(lines, styles.notice.Render(m.message))
-}
-
-type uiStyles struct {
-	selected     lipgloss.Style
-	entry        lipgloss.Style
-	empty        lipgloss.Style
-	promptActive lipgloss.Style
-	freeText     lipgloss.Style
-	notice       lipgloss.Style
-	error        lipgloss.Style
-}
-
-var defaultStyles = uiStyles{
-	selected:     lipgloss.NewStyle().Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")),
-	entry:        lipgloss.NewStyle().Foreground(lipgloss.Color("252")),
-	empty:        lipgloss.NewStyle().Foreground(lipgloss.Color("241")),
-	promptActive: lipgloss.NewStyle().Foreground(lipgloss.Color("141")),
-	freeText:     lipgloss.NewStyle().Foreground(lipgloss.Color("208")),
-	notice:       lipgloss.NewStyle().Foreground(lipgloss.Color("72")),
-	error:        lipgloss.NewStyle().Foreground(lipgloss.Color("196")),
+	return fmt.Sprintf("%s %s\n", cursor, entry)
 }

@@ -1,4 +1,4 @@
-package notify
+package notifier
 
 import (
 	"os/exec"
@@ -6,10 +6,7 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
-// Send delivers a desktop notification with the given summary and body.
-// It tries the D-Bus freedesktop notifications interface first and falls
-// back to notify-send if that fails.
-func Send(summary, body string) error {
+func send(summary, body string) error {
 	if err := sendDbus(summary, body); err == nil {
 		return nil
 	}

@@ -5,78 +5,67 @@ import (
 	"os/exec"
 	"strings"
 
-	"uberlauncher/internal/skills"
-	"uberlauncher/internal/types"
+	"uberlauncher/internal/entry"
+	"uberlauncher/internal/skill"
 )
 
-type Skill struct {
-	runtime skills.Runtime
+type WifiSkill struct{}
+
+func New() skill.Skill {
+	return &WifiSkill{}
 }
 
-func New() skills.Skill {
-	return &Skill{}
-}
+func (s *WifiSkill) Id() string { return "wifi" }
 
-func (s *Skill) Name() string {
-	return "wifi"
-}
-
-func (s *Skill) Init(runtime skills.Runtime) {
-	s.runtime = runtime
-
-	entries := []types.Entry{
-		types.NewEntry(s.Name(), "on"),
-		types.NewEntry(s.Name(), "off"),
-	}
-
-	names, _ := s.knownConnections()
-	for _, name := range names {
-		entries = append(entries, types.NewEntry(s.Name(), name))
-	}
-
-	runtime.UpsertEntries(entries)
-}
-
-func (s *Skill) Execute(cmd types.Command) {
-	if !s.runtime.HasCommand("nmcli") {
-		s.runtime.ReportError(errors.New("nmcli not found"))
+func (s *WifiSkill) Init(ctx skill.Context) {
+	if !ctx.Runtime.HasCommand("nmcli") {
+		ctx.Notifier.ReportError(errors.New("nmcli not found"))
 		return
 	}
 
-	action := strings.TrimSpace(cmd.Entry.EntryID)
-	action = strings.TrimPrefix(action, "wifi ")
+	ctx.Store.UpsertEntry(entry.Entry{
+		Label: "wifi on",
+		Run: func(ec entry.Context) {
+			if err := exec.Command("nmcli", "radio", "wifi", "on").Run(); err != nil {
+				ctx.Notifier.ReportError(err)
+			}
+		},
+	})
+	ctx.Store.UpsertEntry(entry.Entry{
+		Label: "wifi off",
+		Run: func(ec entry.Context) {
+			if err := exec.Command("nmcli", "radio", "wifi", "off").Run(); err != nil {
+				ctx.Notifier.ReportError(err)
+			}
+		},
+	})
 
-	var err error
-	switch action {
-	case "on":
-		err = exec.Command("nmcli", "radio", "wifi", "on").Run()
-	case "off":
-		err = exec.Command("nmcli", "radio", "wifi", "off").Run()
-	default:
-		if action == "" {
-			s.runtime.ReportError(errors.New("missing wifi action"))
-			return
-		}
-		err = exec.Command("nmcli", "connection", "up", "id", action).Run()
-	}
+	names, err := knownConnections()
 	if err != nil {
-		s.runtime.ReportError(err)
+		ctx.Notifier.ReportError(err)
+		return
+	}
+	for _, name := range names {
+		name := name
+		ctx.Store.UpsertEntry(entry.Entry{
+			Label: "wifi " + name,
+			Run: func(ec entry.Context) {
+				if err := exec.Command("nmcli", "connection", "up", "id", name).Run(); err != nil {
+					ctx.Notifier.ReportError(err)
+				}
+			},
+		})
 	}
 }
 
-func (s *Skill) knownConnections() ([]string, error) {
-	if !s.runtime.HasCommand("nmcli") {
-		return nil, errors.New("nmcli not found")
-	}
-	cmd := exec.Command("nmcli", "-t", "-f", "NAME,TYPE", "connection", "show")
-	output, err := cmd.Output()
+func knownConnections() ([]string, error) {
+	out, err := exec.Command("nmcli", "-t", "-f", "NAME,TYPE", "connection", "show").Output()
 	if err != nil {
 		return nil, err
 	}
 
-	lines := strings.Split(string(output), "\n")
-	names := make([]string, 0)
-	for _, line := range lines {
+	var names []string
+	for _, line := range strings.Split(string(out), "\n") {
 		if line == "" {
 			continue
 		}
@@ -84,12 +73,9 @@ func (s *Skill) knownConnections() ([]string, error) {
 		if len(parts) != 2 {
 			continue
 		}
-		name := parts[0]
-		typ := strings.ToLower(parts[1])
-		if strings.Contains(typ, "wifi") || strings.Contains(typ, "wireless") {
-			names = append(names, name)
+		if strings.Contains(strings.ToLower(parts[1]), "wifi") || strings.Contains(strings.ToLower(parts[1]), "wireless") {
+			names = append(names, parts[0])
 		}
 	}
 	return names, nil
 }
-

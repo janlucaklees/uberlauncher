@@ -13,9 +13,8 @@ import (
 	"sort"
 	"strings"
 
-	"uberlauncher/internal/cache"
-	"uberlauncher/internal/skills"
-	"uberlauncher/internal/types"
+	"uberlauncher/internal/entry"
+	"uberlauncher/internal/skill"
 )
 
 type appEntry struct {
@@ -24,74 +23,63 @@ type appEntry struct {
 	Exec string
 }
 
-type Skill struct {
-	runtime  skills.Runtime
-	commands map[string]string
+type AppsSkill struct {
+	ctx skill.Context
 }
 
-func New() skills.Skill {
-	return &Skill{commands: make(map[string]string)}
+func New() skill.Skill {
+	return &AppsSkill{}
 }
 
-func (s *Skill) Name() string {
-	return "apps"
-}
+func (s *AppsSkill) Id() string { return "apps" }
 
-func (s *Skill) Init(runtime skills.Runtime) {
-	s.runtime = runtime
-	sc := runtime.Cache()
+func (s *AppsSkill) Init(ctx skill.Context) {
+	s.ctx = ctx
 
-	cachedApps, err := loadEntries(sc)
+	cachedApps, err := loadEntries(ctx.Cache)
 	if err != nil {
-		runtime.ReportError(err)
-	} else if len(cachedApps) > 0 {
-		s.setCommands(cachedApps)
-		runtime.UpsertEntries(buildEntries(s.Name(), cachedApps))
+		ctx.Notifier.ReportError(err)
+	} else {
+		s.upsertApps(cachedApps)
 	}
 
-	runtime.Go(func() {
-		refreshedApps, err := refreshCache(sc)
+	ctx.Runtime.Go(func() {
+		refreshedApps, err := refreshCache(ctx.Cache)
 		if err != nil {
-			runtime.ReportError(err)
+			ctx.Notifier.ReportError(err)
 			return
 		}
 		if refreshedApps == nil {
-			runtime.SendNotification("Apps cache up to date")
+			ctx.Notifier.SendNotification("Apps cache up to date")
 			return
 		}
-		s.setCommands(refreshedApps)
-		runtime.UpsertEntries(buildEntries(s.Name(), refreshedApps))
-		runtime.SendNotification(fmt.Sprintf("Apps cache refreshed (%d apps)", len(refreshedApps)))
+		s.upsertApps(refreshedApps)
+		ctx.Notifier.SendNotification(fmt.Sprintf("Apps cache refreshed (%d apps)", len(refreshedApps)))
 	})
 }
 
-func (s *Skill) Execute(cmd types.Command) {
-	if cmd.RawInput == "" && cmd.Entry.EntryID == "" {
-		s.runtime.ReportError(errors.New("missing app entry"))
-		return
-	}
-
-	execCmd := cmd.RawInput
-	if execCmd == "" {
-		execCmd = s.commands[cmd.Entry.EntryID]
-		if execCmd == "" {
-			execCmd = cmd.Entry.EntryID
-		}
-	}
-
-	var err error
-	if !s.runtime.HasCommand("hyprctl") {
-		err = exec.Command(execCmd).Start()
-	} else {
-		err = exec.Command("hyprctl", "dispatch", "exec", execCmd).Start()
-	}
-	if err != nil {
-		s.runtime.ReportError(err)
+func (s *AppsSkill) upsertApps(apps []appEntry) {
+	for _, app := range apps {
+		execCmd := app.Exec
+		s.ctx.Store.UpsertEntry(entry.Entry{
+			Label: app.Name,
+			Run: func(ec entry.Context) {
+				var err error
+				if s.ctx.Runtime.HasCommand("hyprctl") {
+					err = exec.Command("hyprctl", "dispatch", "exec", execCmd).Start()
+				} else {
+					err = exec.Command(execCmd).Start()
+				}
+				if err != nil {
+					s.ctx.Notifier.ReportError(err)
+				}
+			},
+		})
 	}
 }
 
-func loadEntries(sc *cache.SkillCache) ([]appEntry, error) {
-	data, err := sc.ReadFile("apps.tsv")
+func loadEntries(c skill.Cache) ([]appEntry, error) {
+	data, err := c.ReadFile("apps.tsv")
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -99,7 +87,7 @@ func loadEntries(sc *cache.SkillCache) ([]appEntry, error) {
 		return nil, err
 	}
 
-	entries := make([]appEntry, 0)
+	var entries []appEntry
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -107,40 +95,34 @@ func loadEntries(sc *cache.SkillCache) ([]appEntry, error) {
 		if len(parts) < 2 {
 			continue
 		}
-		entryID := ""
-		name := ""
-		execCmd := ""
+		var id, name, execCmd string
 		if len(parts) == 2 {
 			name = strings.TrimSpace(parts[0])
 			execCmd = strings.TrimSpace(parts[1])
-			entryID = execCmd
+			id = execCmd
 		} else {
-			entryID = strings.TrimSpace(parts[0])
+			id = strings.TrimSpace(parts[0])
 			name = strings.TrimSpace(parts[1])
 			execCmd = strings.TrimSpace(parts[2])
 		}
 		if name == "" || execCmd == "" {
 			continue
 		}
-		if entryID == "" {
-			entryID = execCmd
+		if id == "" {
+			id = execCmd
 		}
-		entries = append(entries, appEntry{ID: entryID, Name: name, Exec: execCmd})
+		entries = append(entries, appEntry{ID: id, Name: name, Exec: execCmd})
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return entries, nil
+	return entries, scanner.Err()
 }
 
-func refreshCache(sc *cache.SkillCache) ([]appEntry, error) {
+func refreshCache(c skill.Cache) ([]appEntry, error) {
 	newHash, err := desktopTreeHash()
 	if err != nil {
 		return nil, err
 	}
 
-	oldHash, _ := sc.ReadFile("apps.hash")
+	oldHash, _ := c.ReadFile("apps.hash")
 	if strings.TrimSpace(string(oldHash)) == newHash {
 		return nil, nil
 	}
@@ -154,10 +136,10 @@ func refreshCache(sc *cache.SkillCache) ([]appEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := sc.WriteFile("apps.tsv", tsvData); err != nil {
+	if err := c.WriteFile("apps.tsv", tsvData); err != nil {
 		return nil, err
 	}
-	if err := sc.WriteFile("apps.hash", []byte(newHash)); err != nil {
+	if err := c.WriteFile("apps.hash", []byte(newHash)); err != nil {
 		return nil, err
 	}
 	return entries, nil
@@ -167,13 +149,13 @@ func buildTSV(entries []appEntry) ([]byte, error) {
 	var buf bytes.Buffer
 	w := bufio.NewWriter(&buf)
 	seen := make(map[string]struct{})
-	for _, entry := range entries {
-		key := entry.ID + "\t" + entry.Name + "\t" + entry.Exec
+	for _, e := range entries {
+		key := e.ID + "\t" + e.Name + "\t" + e.Exec
 		if _, ok := seen[key]; ok {
 			continue
 		}
 		seen[key] = struct{}{}
-		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\n", entry.ID, entry.Name, entry.Exec); err != nil {
+		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\n", e.ID, e.Name, e.Exec); err != nil {
 			return nil, err
 		}
 	}
@@ -188,13 +170,13 @@ func listApps() ([]appEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	entries := make([]appEntry, 0)
+	var entries []appEntry
 	for _, file := range files {
-		entry, ok := parseDesktopFile(file)
+		e, ok := parseDesktopFile(file)
 		if !ok {
 			continue
 		}
-		entries = append(entries, entry)
+		entries = append(entries, e)
 	}
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Name < entries[j].Name
@@ -204,13 +186,10 @@ func listApps() ([]appEntry, error) {
 
 func listDesktopFiles() ([]string, error) {
 	roots := []string{"/usr/share/applications", filepath.Join(os.Getenv("HOME"), ".local/share/applications")}
-	files := make([]string, 0)
+	var files []string
 	for _, root := range roots {
 		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if d.IsDir() {
+			if err != nil || d.IsDir() {
 				return nil
 			}
 			if strings.HasSuffix(d.Name(), ".desktop") {
@@ -227,16 +206,10 @@ func parseDesktopFile(path string) (appEntry, bool) {
 	if err != nil {
 		return appEntry{}, false
 	}
-	defer func() {
-		_ = file.Close()
-	}()
+	defer func() { _ = file.Close() }()
 
-	var name string
-	var execCmd string
-	var entryType string
-	noDisplay := false
-	hidden := false
-	terminal := false
+	var name, execCmd, entryType string
+	var noDisplay, hidden, terminal bool
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -253,44 +226,37 @@ func parseDesktopFile(path string) (appEntry, bool) {
 		if strings.HasPrefix(line, "Type=") && entryType == "" {
 			entryType = strings.TrimPrefix(line, "Type=")
 		}
-		if strings.HasPrefix(strings.ToLower(line), "nodisplay=") {
-			noDisplay = strings.TrimPrefix(strings.ToLower(line), "nodisplay=") == "true"
+		lower := strings.ToLower(line)
+		if strings.HasPrefix(lower, "nodisplay=") {
+			noDisplay = strings.TrimPrefix(lower, "nodisplay=") == "true"
 		}
-		if strings.HasPrefix(strings.ToLower(line), "hidden=") {
-			hidden = strings.TrimPrefix(strings.ToLower(line), "hidden=") == "true"
+		if strings.HasPrefix(lower, "hidden=") {
+			hidden = strings.TrimPrefix(lower, "hidden=") == "true"
 		}
-		if strings.HasPrefix(strings.ToLower(line), "terminal=") {
-			terminal = strings.TrimPrefix(strings.ToLower(line), "terminal=") == "true"
+		if strings.HasPrefix(lower, "terminal=") {
+			terminal = strings.TrimPrefix(lower, "terminal=") == "true"
 		}
 	}
 
 	if entryType != "Application" || hidden || noDisplay || terminal || execCmd == "" || name == "" {
 		return appEntry{}, false
 	}
-
 	execCmd = sanitizeExec(execCmd)
 	if execCmd == "" {
 		return appEntry{}, false
 	}
-
 	return appEntry{ID: path, Name: name, Exec: execCmd}, true
 }
 
 func sanitizeExec(cmd string) string {
 	replacer := strings.NewReplacer(
 		"%%", "\x01",
-		"%f", "",
-		"%F", "",
-		"%u", "",
-		"%U", "",
-		"%d", "",
-		"%D", "",
-		"%n", "",
-		"%N", "",
-		"%i", "",
-		"%c", "",
-		"%k", "",
-		"%v", "",
+		"%f", "", "%F", "",
+		"%u", "", "%U", "",
+		"%d", "", "%D", "",
+		"%n", "", "%N", "",
+		"%i", "", "%c", "",
+		"%k", "", "%v", "",
 		"%m", "",
 	)
 	cleaned := replacer.Replace(cmd)
@@ -315,23 +281,4 @@ func desktopTreeHash() (string, error) {
 		}
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-
-func buildEntries(skillName string, apps []appEntry) []types.Entry {
-	entries := make([]types.Entry, 0, len(apps))
-	for _, app := range apps {
-		entry := types.NewEntry(skillName, app.ID)
-		entry.DisplayText = app.Name
-		entries = append(entries, entry)
-	}
-	return entries
-}
-
-func (s *Skill) setCommands(apps []appEntry) {
-	commands := make(map[string]string, len(apps))
-	for _, app := range apps {
-		commands[app.ID] = app.Exec
-	}
-	s.commands = commands
 }

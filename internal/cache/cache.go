@@ -3,6 +3,7 @@ package cache
 import (
 	"os"
 	"path/filepath"
+	"uberlauncher/internal/skill"
 )
 
 type Cache struct {
@@ -48,8 +49,8 @@ type SkillCache struct {
 	namespace string
 }
 
-func (c *Cache) ForSkill(skillName string) *SkillCache {
-	return &SkillCache{cache: c, namespace: skillName}
+func (c *Cache) GetForSkill(skill skill.Skill) *SkillCache {
+	return &SkillCache{cache: c, namespace: skill.Id()}
 }
 
 func (sc *SkillCache) Path() string {

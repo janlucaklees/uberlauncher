@@ -1,56 +1,47 @@
 package system
 
 import (
-	"errors"
 	"os/exec"
 
-	"uberlauncher/internal/skills"
-	"uberlauncher/internal/types"
+	"uberlauncher/internal/entry"
+	"uberlauncher/internal/skill"
 )
 
-type powerSkill struct {
-	runtime skills.Runtime
-	name    string
-	action  string
+type SystemSkill struct{}
+
+func New() skill.Skill {
+	return &SystemSkill{}
 }
 
-func NewShutdown() skills.Skill {
-	return &powerSkill{name: "shutdown", action: "poweroff"}
+func (s *SystemSkill) Id() string { return "system" }
+
+func (s *SystemSkill) Init(ctx skill.Context) {
+	ctx.Store.UpsertEntry(entry.Entry{
+		Label: "system shutdown",
+		Run: func(ec entry.Context) {
+			var err error
+			if ctx.Runtime.HasCommand("systemctl") {
+				err = exec.Command("systemctl", "poweroff").Start()
+			} else {
+				err = exec.Command("shutdown", "-h", "now").Start()
+			}
+			if err != nil {
+				ctx.Notifier.ReportError(err)
+			}
+		},
+	})
+	ctx.Store.UpsertEntry(entry.Entry{
+		Label: "system reboot",
+		Run: func(ec entry.Context) {
+			var err error
+			if ctx.Runtime.HasCommand("systemctl") {
+				err = exec.Command("systemctl", "reboot").Start()
+			} else {
+				err = exec.Command("shutdown", "-r", "now").Start()
+			}
+			if err != nil {
+				ctx.Notifier.ReportError(err)
+			}
+		},
+	})
 }
-
-func NewRestart() skills.Skill {
-	return &powerSkill{name: "restart", action: "reboot"}
-}
-
-func (s *powerSkill) Name() string {
-	return s.name
-}
-
-func (s *powerSkill) Init(runtime skills.Runtime) {
-	s.runtime = runtime
-
-	entry := types.NewEntry(s.name, s.name)
-	entry.DisplayText = s.name
-
-	runtime.UpsertEntries([]types.Entry{entry})
-}
-
-func (s *powerSkill) Execute(cmd types.Command) {
-	var err error
-	if s.runtime.HasCommand("systemctl") {
-		err = exec.Command("systemctl", s.action).Start()
-	} else {
-		switch s.action {
-		case "poweroff":
-			err = exec.Command("shutdown", "-h", "now").Start()
-		case "reboot":
-			err = exec.Command("shutdown", "-r", "now").Start()
-		default:
-			err = errors.New("unknown system action")
-		}
-	}
-	if err != nil {
-		s.runtime.ReportError(err)
-	}
-}
-

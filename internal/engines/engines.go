@@ -1,7 +1,7 @@
 package engines
 
-import "uberlauncher/internal/types"
+import "uberlauncher/internal/entry"
 
 type Engine interface {
-	Rank(entries []types.Entry, query string) []types.Entry
+	Rank(entries []entry.Entry, query string) []entry.Entry
 }
