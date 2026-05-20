@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type Direction int
@@ -16,6 +17,19 @@ const (
 	Up   Direction = 1
 	None Direction = 0
 	Down Direction = -1
+)
+
+var (
+	selectedInputStyles   = textinput.DefaultDarkStyles()
+	unselectedInputStyles = textinput.DefaultDarkStyles()
+)
+
+var (
+	cursorChar            = "┃"
+	inputPromptChar       = "› "
+	selectedCursorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	unselectedCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("236"))
+	selectedEntryStyle    = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("236"))
 )
 
 type model struct {
@@ -29,8 +43,10 @@ type model struct {
 }
 
 func New(st *store.Store, n *notifier.Notifier) model {
+	selectedInputStyles.Focused.Text = selectedEntryStyle
+
 	i := textinput.New()
-	i.Prompt = "> "
+	i.Prompt = inputPromptChar
 	i.Placeholder = ""
 	i.Focus()
 
@@ -109,6 +125,10 @@ func (m *model) getEntryListHeight() int {
 	return max(m.height-1, 0)
 }
 
+func (m *model) isInputSelected() bool {
+	return m.cursor == 0
+}
+
 func (m *model) updateCursor(d Direction) {
 	first := 0
 	last := min(m.getEntryListHeight(), len(m.entries)) - 1
@@ -123,8 +143,18 @@ func (m *model) updateCursor(d Direction) {
 
 func (m model) View() tea.View {
 	s := ""
+
+	// Render the entries
 	s += renderEntries(m.entries, m.cursor, m.getEntryListHeight())
-	s += renderEntry(m.input.View(), m.cursor == 0)
+
+	// Render the input
+	if m.isInputSelected() {
+		m.input.SetStyles(selectedInputStyles)
+	} else {
+		m.input.SetStyles(unselectedInputStyles)
+	}
+
+	s += renderEntry(m.input.View(), m.isInputSelected())
 	return tea.NewView(s)
 }
 
@@ -147,9 +177,12 @@ func renderEntries(entries []entry.Entry, cursor int, availableHeight int) strin
 }
 
 func renderEntry(entry string, isSelected bool) string {
-	cursor := " "
+	cursor := unselectedCursorStyle.Render(cursorChar)
+
 	if isSelected {
-		cursor = "|"
+		cursor = selectedCursorStyle.Render(cursorChar)
+		entry = selectedEntryStyle.Render(entry)
 	}
+
 	return fmt.Sprintf("%s %s\n", cursor, entry)
 }
