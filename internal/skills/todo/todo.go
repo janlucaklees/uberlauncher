@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/skill"
@@ -31,7 +32,7 @@ func (s *TodoSkill) Init(ctx skill.Context) {
 				return
 			}
 
-			payload, err := json.Marshal(map[string]string{"text": ec.Input})
+			payload, err := json.Marshal(map[string]string{"text": strings.TrimPrefix(ec.Input, "todo ")})
 			if err != nil {
 				ctx.Notifier.ReportError(err)
 				ec.UI.KeepOpen()
