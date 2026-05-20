@@ -27,6 +27,7 @@ func (s *SystemSkill) Init(ctx skill.Context) {
 			}
 			if err != nil {
 				ctx.Notifier.ReportError(err)
+				ec.UI.KeepOpen()
 			}
 		},
 	})
@@ -41,6 +42,7 @@ func (s *SystemSkill) Init(ctx skill.Context) {
 			}
 			if err != nil {
 				ctx.Notifier.ReportError(err)
+				ec.UI.KeepOpen()
 			}
 		},
 	})

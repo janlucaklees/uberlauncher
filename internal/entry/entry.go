@@ -1,7 +1,12 @@
 package entry
 
+type UI struct {
+	KeepOpen func()
+}
+
 type Context struct {
 	Input string
+	UI    UI
 }
 
 type Entry struct {

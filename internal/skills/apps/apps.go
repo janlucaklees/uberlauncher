@@ -72,6 +72,7 @@ func (s *AppsSkill) upsertApps(apps []appEntry) {
 				}
 				if err != nil {
 					s.ctx.Notifier.ReportError(err)
+					ec.UI.KeepOpen()
 				}
 			},
 		})

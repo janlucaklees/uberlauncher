@@ -25,11 +25,13 @@ func (s *SearchSkill) Init(ctx skill.Context) {
 			text := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(ec.Input), "search"))
 			if text == "" {
 				ctx.Notifier.ReportError(errors.New("search query is empty"))
+				ec.UI.KeepOpen()
 				return
 			}
 			searchURL := "https://www.google.com/search?q=" + url.QueryEscape(text)
 			if err := exec.Command("xdg-open", searchURL).Start(); err != nil {
 				ctx.Notifier.ReportError(err)
+				ec.UI.KeepOpen()
 			}
 		},
 	})

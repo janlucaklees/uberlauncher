@@ -28,6 +28,7 @@ func (s *WifiSkill) Init(ctx skill.Context) {
 		Run: func(ec entry.Context) {
 			if err := exec.Command("nmcli", "radio", "wifi", "on").Run(); err != nil {
 				ctx.Notifier.ReportError(err)
+				ec.UI.KeepOpen()
 			}
 		},
 	})
@@ -36,6 +37,7 @@ func (s *WifiSkill) Init(ctx skill.Context) {
 		Run: func(ec entry.Context) {
 			if err := exec.Command("nmcli", "radio", "wifi", "off").Run(); err != nil {
 				ctx.Notifier.ReportError(err)
+				ec.UI.KeepOpen()
 			}
 		},
 	})
@@ -52,6 +54,7 @@ func (s *WifiSkill) Init(ctx skill.Context) {
 			Run: func(ec entry.Context) {
 				if err := exec.Command("nmcli", "connection", "up", "id", name).Run(); err != nil {
 					ctx.Notifier.ReportError(err)
+					ec.UI.KeepOpen()
 				}
 			},
 		})

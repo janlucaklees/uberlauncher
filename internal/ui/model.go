@@ -113,8 +113,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case tea.KeyEnter:
 			selected := m.getSelectedEntry()
+
 			if selected != nil {
-				selected.Run(entry.Context{Input: m.input.Value()})
+				closeAfterRun := true
+
+				selected.Run(entry.Context{
+					Input: m.input.Value(),
+					UI: entry.UI{
+						KeepOpen: func() {
+							closeAfterRun = false
+						},
+					},
+				})
+
+				if closeAfterRun {
+					return m.quit()
+				}
 			}
 
 		default:
