@@ -20,6 +20,7 @@ const (
 
 type model struct {
 	entries  []entry.Entry
+	height   int
 	input    textinput.Model
 	cursor   int
 	message  string
@@ -66,6 +67,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, waitForNotifierEvent(m.notifier.Events)
 
+	case tea.WindowSizeMsg:
+		m.height = msg.Height
+		m.updateCursor(None)
+
 	case tea.KeyMsg:
 		switch key := msg.Key(); key.Code {
 
@@ -87,9 +92,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			m.input, cmd = m.input.Update(msg)
 			m.entries = m.store.GetMatches(m.input.Value())
-			if m.cursor > len(m.entries) {
-				m.cursor = len(m.entries)
-			}
 			m.updateCursor(None)
 		}
 	}
@@ -108,9 +110,14 @@ func (m model) getSelectedEntry() *entry.Entry {
 	return &m.entries[m.cursor-1]
 }
 
+func (m *model) getEntryListHeight() int {
+	// The total height minus one line of input and one line for the messages / info
+	return max(m.height-1-1, 0)
+}
+
 func (m *model) updateCursor(d Direction) {
 	first := 0
-	last := min(10, len(m.entries))
+	last := min(m.getEntryListHeight(), len(m.entries))
 
 	m.cursor += int(d)
 	if m.cursor < first {
@@ -122,7 +129,7 @@ func (m *model) updateCursor(d Direction) {
 
 func (m model) View() tea.View {
 	s := ""
-	s += renderEntries(m.entries, m.cursor)
+	s += m.renderEntries(m.entries, m.cursor)
 	s += renderEntry(m.input.View(), m.cursor == 0)
 	if m.message != "" {
 		s += fmt.Sprintf("  %s\n", m.message)
@@ -130,8 +137,8 @@ func (m model) View() tea.View {
 	return tea.NewView(s)
 }
 
-func renderEntries(entries []entry.Entry, cursor int) string {
-	const maxEntries = 10
+func (m *model) renderEntries(entries []entry.Entry, cursor int) string {
+	maxEntries := m.getEntryListHeight()
 
 	if len(entries) > maxEntries {
 		entries = entries[:maxEntries]
