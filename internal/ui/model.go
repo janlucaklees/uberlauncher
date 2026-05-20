@@ -23,7 +23,7 @@ type model struct {
 	height   int
 	input    textinput.Model
 	cursor   int
-	message  string
+	messages []notifier.Event
 	store    *store.Store
 	notifier *notifier.Notifier
 }
@@ -59,13 +59,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case notifier.Event:
-		switch msg.Type {
-		case notifier.EventError:
-			m.message = msg.Err.Error()
-		case notifier.EventMessage:
-			m.message = msg.Message
-		}
-		return m, waitForNotifierEvent(m.notifier.Events)
+		m.messages = append(m.messages, msg)
 
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
@@ -111,8 +105,8 @@ func (m model) getSelectedEntry() *entry.Entry {
 }
 
 func (m *model) getEntryListHeight() int {
-	// The total height minus one line of input and one line for the messages / info
-	return max(m.height-1-1, 0)
+	// The total height minus one line of input
+	return max(m.height-1, 0)
 }
 
 func (m *model) updateCursor(d Direction) {
@@ -131,9 +125,6 @@ func (m model) View() tea.View {
 	s := ""
 	s += m.renderEntries(m.entries, m.cursor)
 	s += renderEntry(m.input.View(), m.cursor == 0)
-	if m.message != "" {
-		s += fmt.Sprintf("  %s\n", m.message)
-	}
 	return tea.NewView(s)
 }
 
