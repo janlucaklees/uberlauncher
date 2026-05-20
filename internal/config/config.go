@@ -1,6 +1,7 @@
 package config
 
 import (
+	defaultconfig "uberlauncher/config"
 	"uberlauncher/internal/meta"
 	"uberlauncher/internal/skill"
 
@@ -12,7 +13,7 @@ type Config struct {
 }
 
 func New() (*Config, error) {
-	path, err := meta.GetConfigPath()
+	path, err := meta.GetConfigPath(defaultconfig.DefaultTOML)
 	if err != nil {
 		return nil, err
 	}
