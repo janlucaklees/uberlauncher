@@ -149,9 +149,9 @@ func (m *model) renderEntries(entries []entry.Entry, cursor int) string {
 }
 
 func renderEntry(entry string, isSelected bool) string {
-	cursor := "  "
+	cursor := " "
 	if isSelected {
-		cursor = "| "
+		cursor = "|"
 	}
 	return fmt.Sprintf("%s %s\n", cursor, entry)
 }
