@@ -154,8 +154,8 @@ func (m model) getSelectedEntry() *entry.Entry {
 }
 
 func (m *model) getEntryListHeight() int {
-	// The total height minus one line of input, one line of messages, and one debug line.
-	return max(m.height-1-1-1, 0)
+	// The total height minus one line of input, one line of messages.
+	return max(m.height-1-1, 0)
 }
 
 func (m *model) isFreeTextModeActive() bool {
@@ -207,9 +207,6 @@ func (m model) View() tea.View {
 
 	// Render messages
 	s += renderMessageLine(m.messages, m.messageCursor)
-
-	// Render some debug info
-	s += fmt.Sprintf("height: %d, cursor: %d, entries: %d, entry list height: %d\n", m.height, m.cursor, len(m.entries), m.getEntryListHeight())
 
 	return tea.NewView(strings.TrimSuffix(s, "\n"))
 }
