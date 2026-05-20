@@ -123,26 +123,24 @@ func (m *model) updateCursor(d Direction) {
 
 func (m model) View() tea.View {
 	s := ""
-	s += m.renderEntries(m.entries, m.cursor)
+	s += renderEntries(m.entries, m.cursor, m.getEntryListHeight())
 	s += renderEntry(m.input.View(), m.cursor == 0)
 	return tea.NewView(s)
 }
 
-func (m *model) renderEntries(entries []entry.Entry, cursor int) string {
-	maxEntries := m.getEntryListHeight()
-
-	if len(entries) > maxEntries {
-		entries = entries[:maxEntries]
-	}
+func renderEntries(entries []entry.Entry, cursor int, availableHeight int) string {
+	numEntries := min(availableHeight, len(entries))
 
 	var s string
 
-	for i := 0; i < maxEntries-len(entries); i++ {
+	// Add empty lines to the list to fill the available space so the input stays at the bottom.
+	for i := availableHeight; i > numEntries; i-- {
 		s += "\n"
 	}
 
-	for i := len(entries) - 1; i >= 0; i-- {
-		s += renderEntry(entries[i].Label, i+1 == cursor)
+	// Render the best matching entries in reverse, so that the best match is closest to the input.
+	for i := numEntries; i > 0; i-- {
+		s += renderEntry(entries[i-1].Label, i == cursor)
 	}
 
 	return s
