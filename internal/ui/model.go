@@ -27,20 +27,28 @@ var (
 )
 
 var (
-	cursorChar            = "┃"
-	inputPromptChar       = "› "
-	freeTextEntryChar     = " …"
+	cursorChar        = "┃"
+	inputPromptChar   = "› "
+	freeTextEntryChar = " …"
+
 	selectedCursorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	unselectedCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("236"))
 	selectedEntryStyle    = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("236"))
+
+	infoMessageStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	warningMessageStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	errorMessageStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 )
 
 type model struct {
-	entries  []entry.Entry
-	height   int
-	input    textinput.Model
-	cursor   int
-	messages []notifier.Event
+	entries []entry.Entry
+	height  int
+	input   textinput.Model
+	cursor  int
+
+	messages      []notifier.Event
+	messageCursor int
+
 	store    *store.Store
 	notifier *notifier.Notifier
 }
@@ -54,9 +62,12 @@ func New(st *store.Store, n *notifier.Notifier) model {
 	i.Focus()
 
 	return model{
-		entries:  st.GetMatches(""),
-		input:    i,
-		cursor:   0,
+		entries: st.GetMatches(""),
+		input:   i,
+		cursor:  0,
+
+		messageCursor: -1,
+
 		store:    st,
 		notifier: n,
 	}
@@ -79,6 +90,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case notifier.Event:
 		m.messages = append(m.messages, msg)
+		m.messageCursor = len(m.messages) - 1
 
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
@@ -95,6 +107,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case tea.KeyDown:
 			m.updateCursor(Down)
+
+		case tea.KeyTab:
+			m.cycleMessages()
 
 		case tea.KeyEnter:
 			selected := m.getSelectedEntry()
@@ -125,8 +140,8 @@ func (m model) getSelectedEntry() *entry.Entry {
 }
 
 func (m *model) getEntryListHeight() int {
-	// The total height minus one line of input
-	return max(m.height-1-1, 0)
+	// The total height minus one line of input, one line of messages, and one debug line.
+	return max(m.height-1-1-1, 0)
 }
 
 func (m *model) isFreeTextModeActive() bool {
@@ -144,6 +159,16 @@ func (m *model) updateCursor(d Direction) {
 		m.cursor = last
 	} else if m.cursor > last {
 		m.cursor = first
+	}
+}
+
+func (m *model) cycleMessages() {
+	first := 0
+	last := len(m.messages) - 1
+
+	m.messageCursor -= 1
+	if m.messageCursor < first {
+		m.messageCursor = last
 	}
 }
 
@@ -165,6 +190,9 @@ func (m model) View() tea.View {
 		m.input.SetStyles(unselectedInputStyles)
 	}
 	s += renderEntryLine(m.input.View(), m.isFreeTextModeActive())
+
+	// Render messages
+	s += renderMessageLine(m.messages, m.messageCursor)
 
 	// Render some debug info
 	s += fmt.Sprintf("height: %d, cursor: %d, entries: %d, entry list height: %d\n", m.height, m.cursor, len(m.entries), m.getEntryListHeight())
@@ -207,4 +235,24 @@ func renderEntryLine(content string, isSelected bool) string {
 	}
 
 	return fmt.Sprintf("%s %s\n", cursor, content)
+}
+
+func renderMessageLine(messages []notifier.Event, cursor int) string {
+	if len(messages) == 0 {
+		return "\n"
+	}
+
+	message := messages[cursor]
+
+	var style lipgloss.Style
+	switch message.Severity {
+	case notifier.Warning:
+		style = warningMessageStyle
+	case notifier.Error:
+		style = errorMessageStyle
+	default:
+		style = infoMessageStyle
+	}
+
+	return fmt.Sprintf("(%d/%d) %s\n", cursor+1, len(messages), style.Render(message.Text))
 }

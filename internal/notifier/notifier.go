@@ -11,11 +11,15 @@ func New() *Notifier {
 }
 
 func (n *Notifier) ReportError(err error) {
-	n.Events <- Event{Type: EventError, Err: err}
+	n.Events <- NewError(err)
+}
+
+func (n *Notifier) ReportWarning(message string) {
+	n.Events <- NewWarning(message)
 }
 
 func (n *Notifier) ReportMessage(message string) {
-	n.Events <- Event{Type: EventMessage, Message: message}
+	n.Events <- NewInfo(message)
 }
 
 func (n *Notifier) SendNotification(message string) {
