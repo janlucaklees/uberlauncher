@@ -111,7 +111,7 @@ func (m *model) getEntryListHeight() int {
 
 func (m *model) updateCursor(d Direction) {
 	first := 0
-	last := min(m.getEntryListHeight(), len(m.entries))
+	last := min(m.getEntryListHeight(), len(m.entries)) - 1
 
 	m.cursor += int(d)
 	if m.cursor < first {
