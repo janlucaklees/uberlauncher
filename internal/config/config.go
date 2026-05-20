@@ -1,16 +1,63 @@
 package config
 
-import "uberlauncher/internal/skill"
+import (
+	"uberlauncher/internal/meta"
+	"uberlauncher/internal/skill"
 
-type Config struct{}
+	"github.com/BurntSushi/toml"
+)
 
-func New() *Config {
-	return &Config{}
+type Config struct {
+	configMap MapConfigStruct
 }
 
-func (c *Config) Get(key string) string     { return "" }
-func (c *Config) GetInt(key string) int     { return 0 }
-func (c *Config) GetBool(key string) bool   { return false }
-func (c *Config) Set(key string, value any) {}
+func New() (*Config, error) {
+	path, err := meta.GetConfigPath()
+	if err != nil {
+		return nil, err
+	}
 
-func (c *Config) GetForSkill(_ skill.Skill) *Config { return c }
+	err = validateConfig(path)
+	if err != nil {
+		return nil, err
+	}
+
+	configMap, err := getConfigMap(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Config{
+		configMap: configMap,
+	}, nil
+}
+
+func validateConfig(path string) error {
+	var configStruct ConfigStruct
+
+	_, err := toml.DecodeFile(path, &configStruct)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getConfigMap(path string) (MapConfigStruct, error) {
+	var configMap MapConfigStruct
+
+	_, err := toml.DecodeFile(path, &configMap)
+	if err != nil {
+		return MapConfigStruct{}, err
+	}
+
+	return configMap, nil
+}
+
+func (c *Config) GetGeneralConfig() ConfigMap {
+	return c.configMap.General
+}
+
+func (c *Config) GetForSkill(skill skill.Skill) skill.ConfigMap {
+	return c.configMap.Skills[skill.Id()]
+}

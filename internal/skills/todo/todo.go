@@ -24,6 +24,12 @@ func (s *TodoSkill) Init(ctx skill.Context) {
 		Label:      "todo",
 		IsFreeText: true,
 		Run: func(ec entry.Context) {
+			token, ok := ctx.Config["token"].(string)
+			if !ok || token == "" {
+				ctx.Notifier.ReportError(fmt.Errorf("todo skill is not configured: set skills.todo.token in config.toml"))
+				return
+			}
+
 			payload, err := json.Marshal(map[string]string{"text": ec.Input})
 			if err != nil {
 				ctx.Notifier.ReportError(err)
@@ -35,7 +41,7 @@ func (s *TodoSkill) Init(ctx skill.Context) {
 				ctx.Notifier.ReportError(err)
 				return
 			}
-			req.Header.Set("Authorization", "Bearer "+ctx.Config.Get("token"))
+			req.Header.Set("Authorization", "Bearer "+token)
 			req.Header.Set("Content-Type", "application/json")
 
 			resp, err := http.DefaultClient.Do(req)

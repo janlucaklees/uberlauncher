@@ -41,7 +41,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to initialize cache: %v\n", err)
 		os.Exit(1)
 	}
-	cfg := config.New()
+
+	cfg, err := config.New()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+		os.Exit(1)
+	}
 
 	for _, s := range skillList {
 		s.Init(skill.Context{

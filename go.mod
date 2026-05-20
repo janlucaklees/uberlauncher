@@ -3,6 +3,7 @@ module uberlauncher
 go 1.25.0
 
 require (
+	github.com/BurntSushi/toml v1.5.0
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.6
 	github.com/godbus/dbus/v5 v5.2.2

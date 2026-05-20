@@ -21,12 +21,7 @@ type Notifier interface {
 	SendNotification(message string)
 }
 
-type Config interface {
-	Get(key string) string
-	GetInt(key string) int
-	GetBool(key string) bool
-	Set(key string, value any)
-}
+type ConfigMap map[string]any
 
 type Store interface {
 	UpsertEntry(e entry.Entry)
@@ -37,7 +32,7 @@ type Context struct {
 	Notifier Notifier
 	Store    Store
 
-	Config Config
+	Config ConfigMap
 	Cache  Cache
 }
 

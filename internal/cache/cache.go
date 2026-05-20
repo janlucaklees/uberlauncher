@@ -3,6 +3,7 @@ package cache
 import (
 	"os"
 	"path/filepath"
+	"uberlauncher/internal/meta"
 	"uberlauncher/internal/skill"
 )
 
@@ -11,13 +12,8 @@ type Cache struct {
 }
 
 func New() (*Cache, error) {
-	base, err := os.UserCacheDir()
+	path, err := meta.GetCacheRootPath()
 	if err != nil {
-		base = os.TempDir()
-	}
-
-	path := filepath.Join(base, "uberlauncher")
-	if err := os.MkdirAll(path, 0o755); err != nil {
 		return nil, err
 	}
 
