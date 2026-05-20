@@ -1,4 +1,4 @@
-package todo
+package todoist
 
 import (
 	"bytes"
@@ -18,16 +18,26 @@ func New() skill.Skill {
 	return &TodoSkill{}
 }
 
-func (s *TodoSkill) Id() string { return "todo" }
+func (s *TodoSkill) Id() string { return "todoist" }
 
 func (s *TodoSkill) Init(ctx skill.Context) {
+	enabled, ok := ctx.Config["enabled"].(bool)
+	if ok && !enabled {
+		return
+	}
+
+	token, ok := ctx.Config["token"].(string)
+	if !ok || token == "" {
+		ctx.Notifier.ReportWarning("Missing config: set skills.todoist.token in config.toml")
+	}
+
 	ctx.Store.UpsertEntry(entry.Entry{
 		Label:      "todo",
 		IsFreeText: true,
 		Run: func(ec entry.Context) {
 			token, ok := ctx.Config["token"].(string)
 			if !ok || token == "" {
-				ctx.Notifier.ReportError(fmt.Errorf("todo skill is not configured: set skills.todo.token in config.toml"))
+				ctx.Notifier.ReportError(fmt.Errorf("Missing config: set skills.todoist.token in config.toml"))
 				ec.UI.KeepOpen()
 				return
 			}

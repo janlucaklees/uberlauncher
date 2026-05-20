@@ -15,7 +15,7 @@ import (
 	"uberlauncher/internal/skills/apps"
 	"uberlauncher/internal/skills/search"
 	"uberlauncher/internal/skills/system"
-	"uberlauncher/internal/skills/todo"
+	"uberlauncher/internal/skills/todoist"
 	"uberlauncher/internal/skills/wifi"
 	"uberlauncher/internal/store"
 	"uberlauncher/internal/ui"
@@ -26,7 +26,7 @@ var skillList = []skill.Skill{
 	apps.New(),
 	search.New(),
 	system.New(),
-	todo.New(),
+	todoist.New(),
 	wifi.New(),
 }
 

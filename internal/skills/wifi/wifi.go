@@ -18,6 +18,11 @@ func New() skill.Skill {
 func (s *WifiSkill) Id() string { return "wifi" }
 
 func (s *WifiSkill) Init(ctx skill.Context) {
+	enabled, ok := ctx.Config["enabled"].(bool)
+	if ok && !enabled {
+		return
+	}
+
 	if !ctx.Runtime.HasCommand("nmcli") {
 		ctx.Notifier.ReportError(errors.New("nmcli not found"))
 		return

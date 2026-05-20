@@ -1,0 +1,39 @@
+# UberLauncher default configuration.
+#
+# This file is copied to the user config path on first run. Skills are enabled
+# by default; set enabled = false for any skill you do not want loaded.
+
+
+[general]
+# No general config yet.
+
+[skills.apps]
+# enabled = false
+
+[skills.search]
+# enabled = false
+
+# Use {{query}} where the URL-escaped search query should be inserted.
+url = "https://duckduckgo.com/?q={{query}}"
+
+# Common search URL examples:
+# Google:      "https://www.google.com/search?q={{query}}"
+# DuckDuckGo:  "https://duckduckgo.com/?q={{query}}"
+# Brave:       "https://search.brave.com/search?q={{query}}"
+# Startpage:   "https://www.startpage.com/sp/search?query={{query}}"
+
+# Command used to open the generated search URL.
+# Use {{url}} where the URL-escaped search query should be inserted.
+# command = ["xdg-open", "{{url}}"]
+
+[skills.system]
+# enabled = false
+
+[skills.todoist]
+# enabled = false
+
+# Todoist API token for quick add.
+token = ""
+
+[skills.wifi]
+# enabled = false
