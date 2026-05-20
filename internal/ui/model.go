@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/notifier"
 	"uberlauncher/internal/store"
@@ -27,6 +29,7 @@ var (
 var (
 	cursorChar            = "┃"
 	inputPromptChar       = "› "
+	freeTextEntryChar     = " …"
 	selectedCursorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	unselectedCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("236"))
 	selectedEntryStyle    = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("236"))
@@ -53,7 +56,7 @@ func New(st *store.Store, n *notifier.Notifier) model {
 	return model{
 		entries:  st.GetMatches(""),
 		input:    i,
-		cursor:   1,
+		cursor:   0,
 		store:    st,
 		notifier: n,
 	}
@@ -101,7 +104,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		default:
 			m.input, cmd = m.input.Update(msg)
-			m.entries = m.store.GetMatches(m.input.Value())
+
+			if !m.isFreeTextModeActive() {
+				m.entries = m.store.GetMatches(m.input.Value())
+			}
+
 			m.updateCursor(None)
 		}
 	}
@@ -114,24 +121,23 @@ func (m model) quit() (tea.Model, tea.Cmd) {
 }
 
 func (m model) getSelectedEntry() *entry.Entry {
-	if m.cursor == 0 {
-		return nil
-	}
-	return &m.entries[m.cursor-1]
+	return &m.entries[m.cursor]
 }
 
 func (m *model) getEntryListHeight() int {
 	// The total height minus one line of input
-	return max(m.height-1, 0)
+	return max(m.height-1-1, 0)
 }
 
-func (m *model) isInputSelected() bool {
-	return m.cursor == 0
+func (m *model) isFreeTextModeActive() bool {
+	return slices.ContainsFunc(m.entries, func(entry entry.Entry) bool {
+		return strings.HasPrefix(m.input.Value(), entry.Label+" ")
+	})
 }
 
 func (m *model) updateCursor(d Direction) {
 	first := 0
-	last := min(m.getEntryListHeight(), len(m.entries)) - 1
+	last := min(m.getEntryListHeight(), len(m.entries)) - 1 // -1 to get the index of the last entry
 
 	m.cursor += int(d)
 	if m.cursor < first {
@@ -144,18 +150,26 @@ func (m *model) updateCursor(d Direction) {
 func (m model) View() tea.View {
 	s := ""
 
-	// Render the entries
-	s += renderEntries(m.entries, m.cursor, m.getEntryListHeight())
+	// Render the entry list
+	if m.isFreeTextModeActive() {
+		// When free-text mode is active, make sure the cursor never shows up in the entry list.
+		s += renderEntries(m.entries, -1, m.getEntryListHeight())
+	} else {
+		s += renderEntries(m.entries, m.cursor, m.getEntryListHeight())
+	}
 
 	// Render the input
-	if m.isInputSelected() {
+	if m.isFreeTextModeActive() {
 		m.input.SetStyles(selectedInputStyles)
 	} else {
 		m.input.SetStyles(unselectedInputStyles)
 	}
+	s += renderEntryLine(m.input.View(), m.isFreeTextModeActive())
 
-	s += renderEntry(m.input.View(), m.isInputSelected())
-	return tea.NewView(s)
+	// Render some debug info
+	s += fmt.Sprintf("height: %d, cursor: %d, entries: %d, entry list height: %d\n", m.height, m.cursor, len(m.entries), m.getEntryListHeight())
+
+	return tea.NewView(strings.TrimSuffix(s, "\n"))
 }
 
 func renderEntries(entries []entry.Entry, cursor int, availableHeight int) string {
@@ -164,25 +178,33 @@ func renderEntries(entries []entry.Entry, cursor int, availableHeight int) strin
 	var s string
 
 	// Add empty lines to the list to fill the available space so the input stays at the bottom.
-	for i := availableHeight; i > numEntries; i-- {
+	for i := availableHeight - 1; i >= numEntries; i-- {
 		s += "\n"
 	}
 
 	// Render the best matching entries in reverse, so that the best match is closest to the input.
-	for i := numEntries; i > 0; i-- {
-		s += renderEntry(entries[i-1].Label, i == cursor)
+	for i := numEntries - 1; i >= 0; i-- {
+		s += renderEntry(entries[i], i == cursor)
 	}
 
 	return s
 }
 
-func renderEntry(entry string, isSelected bool) string {
+func renderEntry(entry entry.Entry, isSelected bool) string {
+	if entry.IsFreeText {
+		return renderEntryLine(entry.Label+freeTextEntryChar, isSelected)
+	}
+
+	return renderEntryLine(entry.Label, isSelected)
+}
+
+func renderEntryLine(content string, isSelected bool) string {
 	cursor := unselectedCursorStyle.Render(cursorChar)
 
 	if isSelected {
 		cursor = selectedCursorStyle.Render(cursorChar)
-		entry = selectedEntryStyle.Render(entry)
+		content = selectedEntryStyle.Render(content)
 	}
 
-	return fmt.Sprintf("%s %s\n", cursor, entry)
+	return fmt.Sprintf("%s %s\n", cursor, content)
 }

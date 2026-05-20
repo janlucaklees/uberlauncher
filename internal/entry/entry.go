@@ -5,6 +5,7 @@ type Context struct {
 }
 
 type Entry struct {
-	Label string
-	Run   func(ctx Context)
+	Label      string
+	IsFreeText bool
+	Run        func(ctx Context)
 }

@@ -21,7 +21,8 @@ func (s *TodoSkill) Id() string { return "todo" }
 
 func (s *TodoSkill) Init(ctx skill.Context) {
 	ctx.Store.UpsertEntry(entry.Entry{
-		Label: "todo",
+		Label:      "todo",
+		IsFreeText: true,
 		Run: func(ec entry.Context) {
 			payload, err := json.Marshal(map[string]string{"text": ec.Input})
 			if err != nil {
