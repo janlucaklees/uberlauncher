@@ -9,16 +9,11 @@ import (
 )
 
 type Config struct {
-	configMap MapConfigStruct
+	configMap ConfigStruct
 }
 
 func New() (*Config, error) {
 	path, err := meta.GetConfigPath(defaultconfig.DefaultTOML)
-	if err != nil {
-		return nil, err
-	}
-
-	err = validateConfig(path)
 	if err != nil {
 		return nil, err
 	}
@@ -33,29 +28,18 @@ func New() (*Config, error) {
 	}, nil
 }
 
-func validateConfig(path string) error {
-	var configStruct ConfigStruct
-
-	_, err := toml.DecodeFile(path, &configStruct)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func getConfigMap(path string) (MapConfigStruct, error) {
-	var configMap MapConfigStruct
+func getConfigMap(path string) (ConfigStruct, error) {
+	var configMap ConfigStruct
 
 	_, err := toml.DecodeFile(path, &configMap)
 	if err != nil {
-		return MapConfigStruct{}, err
+		return ConfigStruct{}, err
 	}
 
 	return configMap, nil
 }
 
-func (c *Config) GetGeneralConfig() ConfigMap {
+func (c *Config) GetGeneralConfig() skill.ConfigMap {
 	return c.configMap.General
 }
 
