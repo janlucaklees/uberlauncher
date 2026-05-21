@@ -7,10 +7,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/skill"
 )
+
+var httpClient = &http.Client{Timeout: 10 * time.Second}
 
 type TodoSkill struct{}
 
@@ -58,7 +61,7 @@ func (s *TodoSkill) Init(ctx skill.Context) {
 			req.Header.Set("Authorization", "Bearer "+token)
 			req.Header.Set("Content-Type", "application/json")
 
-			resp, err := http.DefaultClient.Do(req)
+			resp, err := httpClient.Do(req)
 			if err != nil {
 				ctx.Notifier.ReportError(err)
 				ec.UI.KeepOpen()
