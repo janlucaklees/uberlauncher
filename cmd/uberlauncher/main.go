@@ -52,8 +52,8 @@ func main() {
 		s.Init(skill.Context{
 			Runtime:  rt,
 			Notifier: n,
-			Store:    st,
 
+			Store:  st.GetForSkill(s),
 			Cache:  c.GetForSkill(s),
 			Config: cfg.GetForSkill(s),
 		})

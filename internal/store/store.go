@@ -1,10 +1,12 @@
 package store
 
 import (
+	"fmt"
 	"sync"
 
 	"uberlauncher/internal/engines"
 	"uberlauncher/internal/entry"
+	"uberlauncher/internal/skill"
 )
 
 type Store struct {
@@ -21,8 +23,12 @@ func New(engine engines.Engine) *Store {
 }
 
 func (s *Store) UpsertEntry(e entry.Entry) {
+	if e.SkillId == "" {
+		panic("entry.SkillId must be set before calling UpsertEntry")
+	}
+	key := fmt.Sprintf("%s:%s", e.SkillId, e.Id())
 	s.mu.Lock()
-	s.entries[e.Id()] = e
+	s.entries[key] = e
 	s.mu.Unlock()
 }
 
@@ -34,4 +40,22 @@ func (s *Store) GetMatches(query string) []entry.Entry {
 	}
 	s.mu.RUnlock()
 	return s.Engine.Rank(entries, query)
+}
+
+type SkillStore struct {
+	store   *Store
+	skillId string
+}
+
+func (s *Store) GetForSkill(sk skill.Skill) *SkillStore {
+	return &SkillStore{store: s, skillId: sk.Id()}
+}
+
+func (ss *SkillStore) UpsertEntry(e entry.Entry) {
+	if e.SkillId != "" && e.SkillId != ss.skillId {
+		panic("entry.SkillId does not match skill id!")
+	}
+
+	e.SkillId = ss.skillId
+	ss.store.UpsertEntry(e)
 }

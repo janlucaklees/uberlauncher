@@ -36,6 +36,8 @@ var (
 	unselectedCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("236"))
 	selectedEntryStyle    = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("236"))
 
+	skillIdStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+
 	infoMessageStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 	warningMessageStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	errorMessageStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
@@ -233,7 +235,7 @@ func (m model) View() tea.View {
 	} else {
 		m.input.SetStyles(unselectedInputStyles)
 	}
-	s += renderEntryLine(m.input.View(), m.isFreeTextModeActive())
+	s += renderEntryLine(m.input.View(), "", m.isFreeTextModeActive())
 
 	// Render messages
 	s += renderMessageLine(m.messages, m.messageCursor)
@@ -259,15 +261,16 @@ func renderEntries(entries []entry.Entry, cursor int, availableHeight int) strin
 	return s
 }
 
-func renderEntry(entry entry.Entry, isSelected bool) string {
-	if entry.IsFreeText {
-		return renderEntryLine(entry.Label+freeTextEntryChar, isSelected)
+func renderEntry(e entry.Entry, isSelected bool) string {
+	label := e.Label
+	if e.IsFreeText {
+		label += freeTextEntryChar
 	}
 
-	return renderEntryLine(entry.Label, isSelected)
+	return renderEntryLine(label, skillIdStyle.Render(e.SkillId), isSelected)
 }
 
-func renderEntryLine(content string, isSelected bool) string {
+func renderEntryLine(content, annotation string, isSelected bool) string {
 	cursor := unselectedCursorStyle.Render(cursorChar)
 
 	if isSelected {
@@ -275,6 +278,9 @@ func renderEntryLine(content string, isSelected bool) string {
 		content = selectedEntryStyle.Render(content)
 	}
 
+	if annotation != "" {
+		return fmt.Sprintf("%s %s %s\n", cursor, content, annotation)
+	}
 	return fmt.Sprintf("%s %s\n", cursor, content)
 }
 

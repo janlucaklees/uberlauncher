@@ -11,6 +11,7 @@ type Context struct {
 
 type Entry struct {
 	Key        string
+	SkillId    string
 	Label      string
 	IsFreeText bool
 	Run        func(ctx Context)
