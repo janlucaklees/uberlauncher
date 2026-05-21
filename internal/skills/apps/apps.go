@@ -194,7 +194,11 @@ func listApps() ([]appEntry, error) {
 }
 
 func listDesktopFiles() ([]string, error) {
-	roots := []string{"/usr/share/applications", filepath.Join(os.Getenv("HOME"), ".local/share/applications")}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	roots := []string{"/usr/share/applications", filepath.Join(homeDir, ".local/share/applications")}
 	var files []string
 	for _, root := range roots {
 		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
