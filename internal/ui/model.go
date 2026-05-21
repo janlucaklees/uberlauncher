@@ -91,6 +91,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case notifier.Event:
 		m.messages = append(m.messages, msg)
 		m.messageCursor = len(m.messages) - 1
+		cmd = waitForNotifierEvent(m.notifier.Events)
 
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
