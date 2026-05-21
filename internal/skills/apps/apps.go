@@ -69,6 +69,7 @@ func (s *AppsSkill) upsertApps(apps []appEntry) {
 	for _, app := range apps {
 		execCmd := app.Exec
 		s.ctx.Store.UpsertEntry(entry.Entry{
+			Key:   app.ID,
 			Label: app.Name,
 			Run: func(ec entry.Context) {
 				var err error
@@ -126,7 +127,12 @@ func loadEntries(c skill.Cache) ([]appEntry, error) {
 }
 
 func refreshCache(c skill.Cache) ([]appEntry, error) {
-	newHash, err := desktopTreeHash()
+	paths, err := listDesktopFiles()
+	if err != nil {
+		return nil, err
+	}
+
+	newHash, err := hashDesktopFiles(paths)
 	if err != nil {
 		return nil, err
 	}
@@ -136,10 +142,7 @@ func refreshCache(c skill.Cache) ([]appEntry, error) {
 		return nil, nil
 	}
 
-	entries, err := listApps()
-	if err != nil {
-		return nil, err
-	}
+	entries := parseDesktopFiles(paths)
 
 	tsvData, err := buildTSV(entries)
 	if err != nil {
@@ -151,6 +154,7 @@ func refreshCache(c skill.Cache) ([]appEntry, error) {
 	if err := c.WriteFile("apps.hash", []byte(newHash)); err != nil {
 		return nil, err
 	}
+
 	return entries, nil
 }
 
@@ -174,44 +178,62 @@ func buildTSV(entries []appEntry) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func listApps() ([]appEntry, error) {
-	files, err := listDesktopFiles()
-	if err != nil {
-		return nil, err
-	}
-	var entries []appEntry
-	for _, file := range files {
-		e, ok := parseDesktopFile(file)
-		if !ok {
-			continue
-		}
-		entries = append(entries, e)
-	}
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Name < entries[j].Name
-	})
-	return entries, nil
-}
-
 func listDesktopFiles() ([]string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
 	}
 	roots := []string{"/usr/share/applications", filepath.Join(homeDir, ".local/share/applications")}
-	var files []string
+
+	// User root is last, so same-basename files in ~/.local override /usr/share.
+	byID := make(map[string]string)
 	for _, root := range roots {
 		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return nil
 			}
 			if strings.HasSuffix(d.Name(), ".desktop") {
-				files = append(files, path)
+				byID[d.Name()] = path
 			}
 			return nil
 		})
 	}
-	return files, nil
+
+	paths := make([]string, 0, len(byID))
+	for _, path := range byID {
+		paths = append(paths, path)
+	}
+
+	return paths, nil
+}
+
+func hashDesktopFiles(paths []string) (string, error) {
+	// Make sure the paths are sorted for deterministic hashing.
+	sort.Strings(paths)
+
+	h := sha256.New()
+	for _, path := range paths {
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+
+		if _, err := fmt.Fprintf(h, "%s\t%d\t%d\n", path, info.ModTime().Unix(), info.Size()); err != nil {
+			return "", err
+		}
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func parseDesktopFiles(paths []string) []appEntry {
+	var entries []appEntry
+	for _, path := range paths {
+		if e, ok := parseDesktopFile(path); ok {
+			entries = append(entries, e)
+		}
+	}
+	return entries
 }
 
 func parseDesktopFile(path string) (appEntry, bool) {
@@ -256,23 +278,4 @@ func sanitizeExec(cmd string) string {
 		i++
 	}
 	return strings.TrimSpace(b.String())
-}
-
-func desktopTreeHash() (string, error) {
-	files, err := listDesktopFiles()
-	if err != nil {
-		return "", err
-	}
-	sort.Strings(files)
-	h := sha256.New()
-	for _, path := range files {
-		info, err := os.Stat(path)
-		if err != nil {
-			continue
-		}
-		if _, err := fmt.Fprintf(h, "%s\t%d\t%d\n", path, info.ModTime().Unix(), info.Size()); err != nil {
-			return "", err
-		}
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }
