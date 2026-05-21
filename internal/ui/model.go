@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/notifier"
@@ -115,9 +114,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateMessageCursor(Prev)
 
 		case tea.KeyEnter:
-			selected := m.getSelectedEntry()
+			selected, ok := m.getSelectedEntry()
 
-			if selected != nil {
+			if ok {
 				closeAfterRun := true
 
 				selected.Run(entry.Context{
@@ -132,6 +131,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if closeAfterRun {
 					return m.quit()
 				}
+			} else {
+				m.notifier.ReportError(fmt.Errorf("No matching entry found!"))
 			}
 
 		default:
@@ -152,8 +153,20 @@ func (m model) quit() (tea.Model, tea.Cmd) {
 	return m, tea.Quit
 }
 
-func (m model) getSelectedEntry() *entry.Entry {
-	return &m.entries[m.cursor]
+func (m model) getSelectedEntry() (entry.Entry, bool) {
+
+	// If free text mode is active, return the matching entry.
+	e, ok := m.getActiveFreeTextEntry()
+	if ok {
+		return e, true
+	}
+
+	// Otherwise, return the entry under the cursor, in case there is one.
+	if len(m.entries) > 0 {
+		return m.entries[m.cursor], true
+	}
+
+	return entry.Entry{}, false
 }
 
 func (m *model) getEntryListHeight() int {
@@ -161,10 +174,21 @@ func (m *model) getEntryListHeight() int {
 	return max(m.height-1-1, 0)
 }
 
+func (m *model) getActiveFreeTextEntry() (entry.Entry, bool) {
+	i := m.input.Value()
+
+	for _, e := range m.entries {
+		if strings.HasPrefix(i, e.Label+" ") {
+			return e, true
+		}
+	}
+
+	return entry.Entry{}, false
+}
+
 func (m *model) isFreeTextModeActive() bool {
-	return slices.ContainsFunc(m.entries, func(entry entry.Entry) bool {
-		return strings.HasPrefix(m.input.Value(), entry.Label+" ")
-	})
+	_, ok := m.getActiveFreeTextEntry()
+	return ok
 }
 
 func (m *model) updateCursor(d Direction) {
