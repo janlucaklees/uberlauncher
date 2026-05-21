@@ -22,7 +22,7 @@ func New(engine engines.Engine) *Store {
 
 func (s *Store) UpsertEntry(e entry.Entry) {
 	s.mu.Lock()
-	s.entries[e.Label] = e
+	s.entries[e.Id()] = e
 	s.mu.Unlock()
 }
 

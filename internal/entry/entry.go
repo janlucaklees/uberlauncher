@@ -10,7 +10,15 @@ type Context struct {
 }
 
 type Entry struct {
+	Key        string
 	Label      string
 	IsFreeText bool
 	Run        func(ctx Context)
+}
+
+func (e Entry) Id() string {
+	if e.Key != "" {
+		return e.Key
+	}
+	return e.Label
 }
