@@ -105,10 +105,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.quit()
 
 		case tea.KeyUp:
-			m.updateCursor(Up)
+			if !m.isFreeTextModeActive() {
+				m.updateCursor(Up)
+			}
 
 		case tea.KeyDown:
-			m.updateCursor(Down)
+			if !m.isFreeTextModeActive() {
+				m.updateCursor(Down)
+			}
 
 		case tea.KeyTab:
 			m.updateMessageCursor(Prev)
