@@ -234,19 +234,24 @@ func parseDesktopFile(path string) (appEntry, bool) {
 }
 
 func sanitizeExec(cmd string) string {
-	replacer := strings.NewReplacer(
-		"%%", "\x01",
-		"%f", "", "%F", "",
-		"%u", "", "%U", "",
-		"%d", "", "%D", "",
-		"%n", "", "%N", "",
-		"%i", "", "%c", "",
-		"%k", "", "%v", "",
-		"%m", "",
-	)
-	cleaned := replacer.Replace(cmd)
-	cleaned = strings.ReplaceAll(cleaned, "\x01", "%")
-	return strings.TrimSpace(cleaned)
+	var b strings.Builder
+	for i := 0; i < len(cmd); i++ {
+		if cmd[i] != '%' || i+1 >= len(cmd) {
+			b.WriteByte(cmd[i])
+			continue
+		}
+		next := cmd[i+1]
+		if next == '%' {
+			b.WriteByte('%')
+		} else if next >= 'a' && next <= 'z' || next >= 'A' && next <= 'Z' {
+			// field code: expand to nothing
+		} else {
+			b.WriteByte(cmd[i])
+			continue
+		}
+		i++
+	}
+	return strings.TrimSpace(b.String())
 }
 
 func desktopTreeHash() (string, error) {
