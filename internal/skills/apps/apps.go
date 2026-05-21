@@ -73,7 +73,8 @@ func (s *AppsSkill) upsertApps(apps []appEntry) {
 				if s.ctx.Runtime.HasCommand("hyprctl") {
 					err = exec.Command("hyprctl", "dispatch", "exec", execCmd).Start()
 				} else {
-					err = exec.Command(execCmd).Start()
+					parts := strings.Fields(execCmd)
+					err = exec.Command(parts[0], parts[1:]...).Start()
 				}
 				if err != nil {
 					s.ctx.Notifier.ReportError(err)
