@@ -179,7 +179,7 @@ func (m *model) updateCursor(d Direction) {
 
 func (m *model) cycleMessages() {
 	first := 0
-	last := len(m.messages) - 1
+	last := max(0, len(m.messages)-1)
 
 	m.messageCursor -= 1
 	if m.messageCursor < first {
