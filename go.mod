@@ -3,9 +3,9 @@ module uberlauncher
 go 1.25.0
 
 require (
-	github.com/BurntSushi/toml v1.5.0
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.6
+	github.com/BurntSushi/toml v1.5.0
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/sahilm/fuzzy v0.1.2
 )
@@ -25,6 +25,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/rkoesters/xdg v0.0.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect

@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rkoesters/xdg/desktop"
+
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/skill"
 )
@@ -215,44 +217,20 @@ func parseDesktopFile(path string) (appEntry, bool) {
 	}
 	defer func() { _ = file.Close() }()
 
-	var name, execCmd, entryType string
-	var noDisplay, hidden, terminal bool
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		if strings.HasPrefix(line, "Name=") && name == "" {
-			name = strings.TrimPrefix(line, "Name=")
-		}
-		if strings.HasPrefix(line, "Exec=") && execCmd == "" {
-			execCmd = strings.TrimPrefix(line, "Exec=")
-		}
-		if strings.HasPrefix(line, "Type=") && entryType == "" {
-			entryType = strings.TrimPrefix(line, "Type=")
-		}
-		lower := strings.ToLower(line)
-		if strings.HasPrefix(lower, "nodisplay=") {
-			noDisplay = strings.TrimPrefix(lower, "nodisplay=") == "true"
-		}
-		if strings.HasPrefix(lower, "hidden=") {
-			hidden = strings.TrimPrefix(lower, "hidden=") == "true"
-		}
-		if strings.HasPrefix(lower, "terminal=") {
-			terminal = strings.TrimPrefix(lower, "terminal=") == "true"
-		}
-	}
-
-	if entryType != "Application" || hidden || noDisplay || terminal || execCmd == "" || name == "" {
+	e, err := desktop.New(file)
+	if err != nil {
 		return appEntry{}, false
 	}
-	execCmd = sanitizeExec(execCmd)
+
+	if e.Type != desktop.Application || e.Hidden || e.NoDisplay || e.Terminal || e.Exec == "" || e.Name == "" {
+		return appEntry{}, false
+	}
+
+	execCmd := sanitizeExec(e.Exec)
 	if execCmd == "" {
 		return appEntry{}, false
 	}
-	return appEntry{ID: path, Name: name, Exec: execCmd}, true
+	return appEntry{ID: path, Name: e.Name, Exec: execCmd}, true
 }
 
 func sanitizeExec(cmd string) string {
