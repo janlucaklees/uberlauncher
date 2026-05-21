@@ -1,11 +1,8 @@
 package apps
 
 import (
-	"bufio"
-	"bytes"
-	"errors"
+	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -13,10 +10,18 @@ import (
 	"uberlauncher/internal/skill"
 )
 
+const cacheVersion = 1
+
 type appEntry struct {
-	ID   string
-	Name string
-	Exec string
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Exec string `json:"exec"`
+}
+
+type appCache struct {
+	Version int        `json:"version"`
+	Hash    string     `json:"hash"`
+	Entries []appEntry `json:"entries"`
 }
 
 type AppsSkill struct {
@@ -37,15 +42,13 @@ func (s *AppsSkill) Init(ctx skill.Context) {
 
 	s.ctx = ctx
 
-	cachedApps, err := loadEntries(ctx.Cache)
-	if err != nil {
-		ctx.Notifier.ReportError(err)
-	} else {
-		s.upsertApps(cachedApps)
+	c, ok := loadCache(ctx.Cache)
+	if ok {
+		s.upsertApps(c.Entries)
 	}
 
 	ctx.Runtime.Go(func() {
-		refreshedApps, err := refreshCache(ctx.Cache)
+		refreshedApps, err := refreshCache(ctx.Cache, c.Hash)
 		if err != nil {
 			ctx.Notifier.ReportError(err)
 			return
@@ -82,35 +85,34 @@ func (s *AppsSkill) upsertApps(apps []appEntry) {
 	}
 }
 
-func loadEntries(c skill.Cache) ([]appEntry, error) {
-	data, err := c.ReadFile("apps.tsv")
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
+func loadCache(c skill.Cache) (appCache, bool) {
+	data, err := c.ReadFile("apps.json")
 	if err != nil {
-		return nil, err
+		return appCache{}, false
 	}
-
-	var entries []appEntry
-	scanner := bufio.NewScanner(bytes.NewReader(data))
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.SplitN(line, "\t", 3)
-		if len(parts) < 3 {
-			continue
-		}
-		id := strings.TrimSpace(parts[0])
-		name := strings.TrimSpace(parts[1])
-		execCmd := strings.TrimSpace(parts[2])
-		if id == "" || name == "" || execCmd == "" {
-			continue
-		}
-		entries = append(entries, appEntry{ID: id, Name: name, Exec: execCmd})
+	var cache appCache
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return appCache{}, false
 	}
-	return entries, scanner.Err()
+	if cache.Version != cacheVersion {
+		return appCache{}, false
+	}
+	return cache, true
 }
 
-func refreshCache(c skill.Cache) ([]appEntry, error) {
+func saveCache(c skill.Cache, entries []appEntry, hash string) error {
+	data, err := json.Marshal(appCache{
+		Version: cacheVersion,
+		Hash:    hash,
+		Entries: entries,
+	})
+	if err != nil {
+		return err
+	}
+	return c.WriteFile("apps.json", data)
+}
+
+func refreshCache(c skill.Cache, currentHash string) ([]appEntry, error) {
 	paths, err := listDesktopFiles()
 	if err != nil {
 		return nil, err
@@ -121,37 +123,13 @@ func refreshCache(c skill.Cache) ([]appEntry, error) {
 		return nil, err
 	}
 
-	oldHash, _ := c.ReadFile("apps.hash")
-	if strings.TrimSpace(string(oldHash)) == newHash {
+	if currentHash == newHash {
 		return nil, nil
 	}
 
 	entries := parseDesktopFiles(paths)
-
-	tsvData, err := buildTSV(entries)
-	if err != nil {
+	if err := saveCache(c, entries, newHash); err != nil {
 		return nil, err
 	}
-	if err := c.WriteFile("apps.tsv", tsvData); err != nil {
-		return nil, err
-	}
-	if err := c.WriteFile("apps.hash", []byte(newHash)); err != nil {
-		return nil, err
-	}
-
 	return entries, nil
-}
-
-func buildTSV(entries []appEntry) ([]byte, error) {
-	var buf bytes.Buffer
-	w := bufio.NewWriter(&buf)
-	for _, e := range entries {
-		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\n", e.ID, e.Name, e.Exec); err != nil {
-			return nil, err
-		}
-	}
-	if err := w.Flush(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
