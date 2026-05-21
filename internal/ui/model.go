@@ -17,8 +17,10 @@ type Direction int
 
 const (
 	Up   Direction = 1
+	Next Direction = 1
 	None Direction = 0
 	Down Direction = -1
+	Prev Direction = -1
 )
 
 var (
@@ -90,7 +92,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case notifier.Event:
 		m.messages = append(m.messages, msg)
-		m.messageCursor = len(m.messages) - 1
+		m.updateMessageCursor(Next)
 		cmd = waitForNotifierEvent(m.notifier.Events)
 
 	case tea.WindowSizeMsg:
@@ -110,7 +112,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateCursor(Down)
 
 		case tea.KeyTab:
-			m.cycleMessages()
+			m.updateMessageCursor(Prev)
 
 		case tea.KeyEnter:
 			selected := m.getSelectedEntry()
@@ -166,25 +168,24 @@ func (m *model) isFreeTextModeActive() bool {
 }
 
 func (m *model) updateCursor(d Direction) {
-	first := 0
-	last := min(m.getEntryListHeight(), len(m.entries)) - 1 // -1 to get the index of the last entry
-
-	m.cursor += int(d)
-	if m.cursor < first {
-		m.cursor = last
-	} else if m.cursor > last {
-		m.cursor = first
-	}
+	m.cursor = wrapCursor(
+		0,
+		max(0, min(m.getEntryListHeight(), len(m.entries))-1),
+		m.cursor+int(d),
+	)
 }
 
-func (m *model) cycleMessages() {
-	first := 0
-	last := max(0, len(m.messages)-1)
+func (m *model) updateMessageCursor(d Direction) {
+	m.messageCursor = wrapCursor(
+		0,
+		max(0, len(m.messages)-1),
+		m.messageCursor+int(d),
+	)
+}
 
-	m.messageCursor -= 1
-	if m.messageCursor < first {
-		m.messageCursor = last
-	}
+func wrapCursor(min int, max int, cursor int) int {
+	n := max - min + 1
+	return min + ((cursor-min)%n+n)%n
 }
 
 func (m model) View() tea.View {
