@@ -13,6 +13,7 @@ import (
 	"uberlauncher/internal/runtime"
 	"uberlauncher/internal/skill"
 	"uberlauncher/internal/skills/apps"
+	"uberlauncher/internal/skills/custom"
 	"uberlauncher/internal/skills/search"
 	"uberlauncher/internal/skills/system"
 	"uberlauncher/internal/skills/todoist"
@@ -24,6 +25,7 @@ import (
 // Register your skills here.
 var skillList = []skill.Skill{
 	apps.New(),
+	custom.New(),
 	search.New(),
 	system.New(),
 	todoist.New(),

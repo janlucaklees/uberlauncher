@@ -37,3 +37,13 @@ token = ""
 
 [skills.wifi]
 # enabled = false
+
+[skills.custom]
+enabled = false
+
+# Define custom launcher entries as sub-tables.
+# Each sub-table becomes one entry; label and command are required.
+#
+# [skills.custom.example]
+# label = "my custom action"
+# command = "xdg-open https://github.com/janlucaklees/uberlauncher#Troubleshooting"
