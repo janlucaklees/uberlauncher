@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"uberlauncher/internal/entry"
+	"uberlauncher/internal/meta"
 	"uberlauncher/internal/skill"
 )
 
@@ -69,10 +70,17 @@ func (s *AppsSkill) upsertApps(apps []appEntry) {
 			Key:   app.ID,
 			Label: app.Name,
 			Run: func(ec entry.Context) {
+				if meta.Verbose {
+					s.ctx.Notifier.Debug(fmt.Sprintf("Launching \"%s\"", execCmd))
+					ec.UI.KeepOpen()
+				}
+
 				var err error
 				if s.ctx.Runtime.HasCommand("hyprctl") {
+					s.ctx.Notifier.Debug("Hyprland detected!")
 					err = exec.Command("hyprctl", "dispatch", "exec", execCmd).Start()
 				} else {
+					s.ctx.Notifier.Debug("No DE detected, falling back to just executing the command!")
 					parts := strings.Fields(execCmd)
 					err = exec.Command(parts[0], parts[1:]...).Start()
 				}

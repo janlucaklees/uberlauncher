@@ -11,6 +11,8 @@ const (
 	ConfigFileName = "config.toml"
 )
 
+var Verbose bool
+
 func GetConfigPath(defaultContent []byte) (string, error) {
 	base, err := os.UserConfigDir()
 	if err != nil {

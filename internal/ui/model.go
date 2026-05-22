@@ -38,6 +38,7 @@ var (
 
 	skillIdStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
+	debugMessageStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
 	infoMessageStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 	warningMessageStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	errorMessageStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
@@ -293,6 +294,8 @@ func renderMessageLine(messages []notifier.Event, cursor int) string {
 
 	var style lipgloss.Style
 	switch message.Severity {
+	case notifier.Debug:
+		style = debugMessageStyle
 	case notifier.Warning:
 		style = warningMessageStyle
 	case notifier.Error:

@@ -1,5 +1,7 @@
 package notifier
 
+import "uberlauncher/internal/meta"
+
 type Notifier struct {
 	Events chan Event
 }
@@ -24,4 +26,10 @@ func (n *Notifier) ReportMessage(message string) {
 
 func (n *Notifier) SendNotification(message string) {
 	_ = send("uberlauncher", message)
+}
+
+func (n *Notifier) Debug(message string) {
+	if meta.Verbose {
+		n.Events <- NewDebug(message)
+	}
 }

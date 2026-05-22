@@ -15,6 +15,7 @@ type Cache interface {
 }
 
 type Notifier interface {
+	Debug(message string)
 	ReportError(err error)
 	ReportWarning(message string)
 	ReportMessage(message string)

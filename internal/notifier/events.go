@@ -3,7 +3,8 @@ package notifier
 type Severity int
 
 const (
-	Info Severity = iota
+	Debug Severity = iota
+	Info
 	Warning
 	Error
 )
@@ -11,6 +12,10 @@ const (
 type Event struct {
 	Severity Severity
 	Text     string
+}
+
+func NewDebug(text string) Event {
+	return Event{Severity: Debug, Text: text}
 }
 
 func NewInfo(text string) Event {

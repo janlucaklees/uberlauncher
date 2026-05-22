@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -9,11 +10,13 @@ import (
 	"uberlauncher/internal/cache"
 	"uberlauncher/internal/config"
 	"uberlauncher/internal/engines"
+	"uberlauncher/internal/meta"
 	"uberlauncher/internal/notifier"
 	"uberlauncher/internal/runtime"
 	"uberlauncher/internal/skill"
 	"uberlauncher/internal/skills/apps"
 	"uberlauncher/internal/skills/custom"
+	"uberlauncher/internal/skills/debug"
 	"uberlauncher/internal/skills/search"
 	"uberlauncher/internal/skills/system"
 	"uberlauncher/internal/skills/todoist"
@@ -33,6 +36,16 @@ var skillList = []skill.Skill{
 }
 
 func main() {
+	verbose := flag.Bool("v", false, "enable debug output")
+	flag.BoolVar(verbose, "verbose", false, "enable debug output")
+	flag.Parse()
+
+	meta.Verbose = *verbose
+
+	if meta.Verbose {
+		skillList = append(skillList, debug.New())
+	}
+
 	rt := runtime.New()
 	n := notifier.New()
 	engine := engines.New()

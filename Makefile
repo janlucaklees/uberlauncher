@@ -21,7 +21,7 @@ build:
 	$(GO) build -o $(BINARY) $(CMD)
 
 run:
-	$(GO) run $(CMD)
+	$(GO) run $(CMD) --verbose
 
 test:
 	$(GO) test ./...
