@@ -12,8 +12,16 @@ const (
 )
 
 var Verbose bool
+var ConfigPath string
 
 func GetConfigPath(defaultContent []byte) (string, error) {
+	if ConfigPath != "" {
+		if _, err := os.Stat(ConfigPath); err != nil {
+			return "", err
+		}
+		return ConfigPath, nil
+	}
+
 	base, err := os.UserConfigDir()
 	if err != nil {
 		return "", err

@@ -38,9 +38,11 @@ var skillList = []skill.Skill{
 func main() {
 	verbose := flag.Bool("v", false, "enable debug output")
 	flag.BoolVar(verbose, "verbose", false, "enable debug output")
+	configPath := flag.String("config", "", "path to config file (overrides default; file is not auto-created)")
 	flag.Parse()
 
 	meta.Verbose = *verbose
+	meta.ConfigPath = *configPath
 
 	if meta.Verbose {
 		skillList = append(skillList, debug.New())

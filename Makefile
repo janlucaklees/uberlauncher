@@ -21,7 +21,7 @@ build:
 	$(GO) build -o $(BINARY) $(CMD)
 
 run:
-	$(GO) run $(CMD) --verbose
+	$(GO) run $(CMD) --verbose --config ./config/default.toml
 
 test:
 	$(GO) test ./...
