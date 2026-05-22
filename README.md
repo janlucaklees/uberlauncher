@@ -1,112 +1,140 @@
 # UberLauncher
 
-UberLauncher is a Bubble Tea based terminal launcher with modular skills.
+A fast-summon TUI launcher focused on dispatching useful actions without breaking flow.
 
-It aggregates entries from built-in skills, applies fuzzy search with usage/recency ranking, and executes the selected result. It also supports free-text skills (for example `todo buy milk`).
+<p align="center">
+  <img src="./static/screenshot.png" alt="UberLauncher Screenshot" width="600">
+  <br />
+  <em>UberLauncher running in foot on Hyprland.</em>
+</p>
 
-## MVP Features
 
-- Fuzzy search across all skill entries
-- Usage + recency weighted ranking persisted in cache
-- Free-text mode for supported skills
-- Async skill entry updates via runtime events
-- Built-in skills:
-  - `apps`
-  - `todo` (Todoist quick add)
-  - `shutdown`
-  - `restart`
-  - `wifi`
+## About
 
-## Requirements
+> I want my launcher to react at the speed of my thoughts - or faster.
 
-- Go 1.22+
-- Linux environment
-- Optional runtime tools depending on skill usage:
-  - `hyprctl` for app launching on Hyprland
-  - `nmcli` for WiFi skill
+UberLauncher is a launcher designed around instant-summon and low friction UI to help you stay in
+flow. It turns interruptions into quick, uniform interactions.
 
-## Build
+Its built-in skills make recurring actions instantly reachable through a single fast interface, like
+launching applications, controlling system settings or capturing todos in the moment they come to
+mind. \
+See the [Features](#features) section for current and planned skills.
 
-```bash
-go build ./cmd/uberlauncher
-```
-This creates the `uberlauncher` binary in the repository root.
+The project is still in an early stage and primarily developed on Hyprland.
+Expect rough edges, limited documentation, and rapidly evolving ideas.
 
-## Run
+
+---
+
+## Setup
+
+### 1. Get and build the launcher
 
 ```bash
-./uberlauncher
+git clone https://github.com/janlucaklees/uberlauncher
+cd uberlauncher
+make build
 ```
 
-## Todo Skill Setup
+AUR packaging is planned.
 
-`todo` uses Todoist quick add and requires:
 
-- `TODOIST_API_TOKEN` environment variable
+### 2. Integrate it into your setup
 
-Example:
+Here is how I currently use it in my Hyprland setup:
 
-```bash
-export TODOIST_API_TOKEN="<your-token>"
-./uberlauncher
+```ini
+bind = SUPER, SPACE, exec, footclient --term xterm-256color --app-id uberlauncher -T Launcher -e zsh -c ~/Projects/uberlauncher/uberlauncher
+windowrule = float on, center on, pin on, stay_focused on, match:class launcher
 ```
 
-Optional fallback file supported by the skill:
+I am using:
+- The great [`foot` terminal](https://codeberg.org/dnkl/foot) for instant startup.
+- `zsh -c` to avoid unnecessary shell initialization overhead.
+- Window rules to keep the launcher centered, focused and always on top.
 
-- `~/.config/uberlauncher/todo.env`
+Adjust this however fits your workflow best.
 
-with content like:
 
-```bash
-TODOIST_API_TOKEN=<your-token>
-```
+## Configuration
 
-## Internal Job
+UberLauncher is configured through a simple TOML config located at:
+`~/.config/uberlauncher/config.toml`
 
-The apps skill can refresh its app cache using:
+A fully documented example configuration containing all available options can be found in
+[`config/default.toml`](./config/default.toml).
 
-```bash
-./uberlauncher __internal refresh-app-cache
-```
 
-## Cache Paths
+---
 
-- Usage ranking: `~/.cache/uberlauncher/usage.json`
-- Skill caches: `~/.cache/uberlauncher/<skill>/`
+## Features
+UberLauncher turns interruptions into quick, uniform interactions.
 
-## Project Structure
+Through its pluggable skill system, a variety of actions become instantly reachable:\
+launching applications, switching WiFi, capturing todos, searching the web, or running custom commands.
 
-- `cmd/uberlauncher/` - entrypoint
-- `internal/core/` - launcher orchestration and skill registry
-- `internal/skill/` - skill interfaces
-- `internal/types/` - shared DTOs
-- `internal/ui/` - Bubble Tea UI model
-- `internal/ranking/` - fuzzy ranking and usage store
-- `internal/runtime/` - runtime services + event bus
-- `internal/store/` - in-memory entry store
-- `internal/skills/` - built-in skills
-- `internal/jobs/` - internal background jobs
+No remembering commands. No clicking through slow menus. No switching into a different tool just to handle a small task.
 
-## Notes
+UberLauncher provides one interaction model for your system, tools, and applications:\
+open → type → enter → done.
 
-- No fallback shell command execution is enabled in MVP.
-- Aliases, external plugins, and daemon mode are out of scope for MVP.
 
-## Developer Tooling
+### Current built-in skills
 
-- `make help` shows available tasks
-- `make fmt` formats Go files
-- `make fmt-check` validates formatting
-- `make vet` runs static vet checks
-- `make test` runs all tests
-- `make lint` runs `golangci-lint` (requires local install)
-- `make check` runs `fmt-check`, `vet`, `test`, and `lint`
+**App Launcher**\
+Launch applications sourced from `.desktop` files on your system.
 
-CI is configured at `.github/workflows/ci.yml` and runs format, vet, test, build, and lint on pushes/PRs.
+**Web-Search**\
+Open web searches in your browser using the search engine of your choice.
 
-## Git Hooks (Lefthook)
+**System Control**\
+Shutdown or reboot your machine.
 
-This repo uses Lefthook for Git hooks:
+**Wifi Control**\
+Toggle WiFi or connect to saved networks. Requires `nmcli`.
 
-- `pre-commit`: runs `make fmt-check`, `make vet`, and `make lint` (when `golangci-lint` is installed)
-- `pre-push`: runs `make test`
+**Todoist Integration**\
+Capture todos and send them to your Todoist account.
+
+**Custom Actions**\
+User-defined actions executing arbitrary shell commands. See [Configuration](#configuration)
+
+
+### Planned Features
+
+**Emoji Picker**\
+Quickly search and insert emojis without interrupting your workflow.
+
+**Inline Calculator**\
+Evaluate mathematical expressions directly inside the launcher.
+
+**Recent File Access**\
+Quickly continue working on recently used or downloaded files.
+
+**Calendar Integration**\
+Create calendar events without opening a dedicated calendar application.
+
+**Bluetooth Controls**\
+Connect devices or switch outputs without navigating desktop menus.
+
+**Improved ranking of actions by recency and usage**\
+Improve result ordering based on frequently and recently used actions.
+
+The project is still heavily shaped by day-to-day usage and workflow friction.
+
+
+---
+
+## License
+
+The source code for this project is licensed under the Mozilla Public License 2.0.
+
+For details on third-party licensing, bundled libraries, and additional notices, see [NOTICE.md](./NOTICE.md).
+
+
+---
+
+UberLauncher is a fast, keyboard-driven TUI launcher for Linux focused on instant summon, low friction, and flow-preserving interactions. It combines fuzzy-search with an extensible skill system to make applications, system actions, web searches, todos, and custom commands reachable through one unified interface.
+
+Built primarily for Hyprland and terminal-heavy workflows, UberLauncher is designed for users who value speed, minimalism, extensibility, and staying in flow.
