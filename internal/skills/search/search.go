@@ -54,7 +54,7 @@ func (s *SearchSkill) Init(ctx skill.Context) {
 				command = append(command, strings.ReplaceAll(s, "{{url}}", url))
 			}
 
-			if err := exec.Command(command[0], command[1:]...).Start(); err != nil {
+			if err := exec.Command(command[0], command[1:]...).Run(); err != nil {
 				ctx.Notifier.ReportError(err)
 				ec.UI.KeepOpen()
 			}

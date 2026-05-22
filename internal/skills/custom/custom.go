@@ -2,6 +2,7 @@ package custom
 
 import (
 	"os/exec"
+	"syscall"
 
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/skill"
@@ -41,7 +42,9 @@ func (s *CustomSkill) Init(ctx skill.Context) {
 			Key:   key,
 			Label: label,
 			Run: func(ec entry.Context) {
-				err := exec.Command("sh", "-c", command).Start()
+				cmd := exec.Command("sh", "-c", command)
+				cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+				err := cmd.Start()
 				if err != nil {
 					ctx.Notifier.ReportError(err)
 					ec.UI.KeepOpen()

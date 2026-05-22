@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"syscall"
 
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/meta"
@@ -78,11 +79,17 @@ func (s *AppsSkill) upsertApps(apps []appEntry) {
 				var err error
 				if s.ctx.Runtime.HasCommand("hyprctl") {
 					s.ctx.Notifier.Debug("Hyprland detected!")
-					err = exec.Command("hyprctl", "dispatch", "exec", execCmd).Start()
+					// Run (not Start) so we wait for hyprctl to finish sending its
+					// socket message to Hyprland before the launcher closes.
+					err = exec.Command("hyprctl", "dispatch", "exec", execCmd).Run()
 				} else {
 					s.ctx.Notifier.Debug("No DE detected, falling back to just executing the command!")
 					parts := strings.Fields(execCmd)
-					err = exec.Command(parts[0], parts[1:]...).Start()
+					cmd := exec.Command(parts[0], parts[1:]...)
+					// Detach from launcher's process group so the app survives after
+					// the launcher exits.
+					cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+					err = cmd.Start()
 				}
 				if err != nil {
 					s.ctx.Notifier.ReportError(err)

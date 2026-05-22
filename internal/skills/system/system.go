@@ -26,9 +26,9 @@ func (s *SystemSkill) Init(ctx skill.Context) {
 		Run: func(ec entry.Context) {
 			var err error
 			if ctx.Runtime.HasCommand("systemctl") {
-				err = exec.Command("systemctl", "poweroff").Start()
+				err = exec.Command("systemctl", "poweroff").Run()
 			} else {
-				err = exec.Command("shutdown", "-h", "now").Start()
+				err = exec.Command("shutdown", "-h", "now").Run()
 			}
 			if err != nil {
 				ctx.Notifier.ReportError(err)
@@ -41,9 +41,9 @@ func (s *SystemSkill) Init(ctx skill.Context) {
 		Run: func(ec entry.Context) {
 			var err error
 			if ctx.Runtime.HasCommand("systemctl") {
-				err = exec.Command("systemctl", "reboot").Start()
+				err = exec.Command("systemctl", "reboot").Run()
 			} else {
-				err = exec.Command("shutdown", "-r", "now").Start()
+				err = exec.Command("shutdown", "-r", "now").Run()
 			}
 			if err != nil {
 				ctx.Notifier.ReportError(err)
