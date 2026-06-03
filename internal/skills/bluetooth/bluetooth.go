@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os/exec"
 	"strings"
+	"time"
 
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/skill"
@@ -47,6 +48,8 @@ func (s *BluetoothSkill) Init(ctx skill.Context) {
 		},
 	})
 
+	ctx.Status.Register("bluetooth:icon", 10*time.Second, bluetoothIcon)
+
 	devices, err := pairedDevices()
 	if err != nil {
 		ctx.Notifier.ReportError(err)
@@ -64,6 +67,19 @@ func (s *BluetoothSkill) Init(ctx skill.Context) {
 			},
 		})
 	}
+}
+
+func bluetoothIcon() string {
+	out, err := exec.Command("bluetoothctl", "show").Output()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.Contains(line, "Powered: yes") {
+			return "󰂯"
+		}
+	}
+	return "󰂲"
 }
 
 type device struct {

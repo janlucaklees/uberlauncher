@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -15,7 +16,9 @@ import (
 	"uberlauncher/internal/runtime"
 	"uberlauncher/internal/skill"
 	"uberlauncher/internal/skills/apps"
+	"uberlauncher/internal/skills/battery"
 	"uberlauncher/internal/skills/bluetooth"
+	"uberlauncher/internal/skills/clock"
 	"uberlauncher/internal/skills/custom"
 	"uberlauncher/internal/skills/debug"
 	"uberlauncher/internal/skills/keyboard"
@@ -25,6 +28,7 @@ import (
 	"uberlauncher/internal/skills/system"
 	"uberlauncher/internal/skills/todoist"
 	"uberlauncher/internal/skills/wifi"
+	"uberlauncher/internal/statusbar"
 	"uberlauncher/internal/store"
 	"uberlauncher/internal/ui"
 )
@@ -32,7 +36,9 @@ import (
 // Register your skills here.
 var skillList = []skill.Skill{
 	apps.New(),
+	battery.New(),
 	bluetooth.New(),
+	clock.New(),
 	custom.New(),
 	keyboard.New(),
 	notifications.New(),
@@ -73,10 +79,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	sbStore := statusbar.NewStore()
+	sbUpdater := statusbar.NewUpdater(ctx, sbStore)
+	sbCfg := cfg.GetStatusBarConfig()
+
 	for _, s := range skillList {
 		s.Init(skill.Context{
 			Runtime:  rt,
 			Notifier: n,
+			Status:   sbUpdater,
 
 			Store:  st.GetForSkill(s),
 			Cache:  c.GetForSkill(s),
@@ -84,7 +96,13 @@ func main() {
 		})
 	}
 
-	model := ui.New(st, n)
+	model := ui.New(st, n, ui.StatusBarOptions{
+		Enabled: sbCfg.Enabled,
+		Store:   sbStore,
+		Left:    sbCfg.Left,
+		Center:  sbCfg.Center,
+		Right:   sbCfg.Right,
+	})
 
 	program := tea.NewProgram(model)
 	_, err = program.Run()
@@ -92,5 +110,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 	}
 
+	cancel()
 	rt.Wait()
 }

@@ -12,6 +12,12 @@ type Config struct {
 	configMap ConfigStruct
 }
 
+var DefaultConfig = ConfigStruct{
+	StatusBar: StatusBarConfig{
+		Enabled: true,
+	},
+}
+
 func New() (*Config, error) {
 	path, err := meta.GetConfigPath(defaultconfig.DefaultTOML)
 	if err != nil {
@@ -29,7 +35,7 @@ func New() (*Config, error) {
 }
 
 func getConfigMap(path string) (ConfigStruct, error) {
-	var configMap ConfigStruct
+	configMap := DefaultConfig
 
 	_, err := toml.DecodeFile(path, &configMap)
 	if err != nil {
@@ -45,4 +51,8 @@ func (c *Config) GetGeneralConfig() skill.ConfigMap {
 
 func (c *Config) GetForSkill(skill skill.Skill) skill.ConfigMap {
 	return c.configMap.Skills[skill.Id()]
+}
+
+func (c *Config) GetStatusBarConfig() StatusBarConfig {
+	return c.configMap.StatusBar
 }

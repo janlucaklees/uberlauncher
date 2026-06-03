@@ -3,6 +3,8 @@ package notifications
 import (
 	"errors"
 	"os/exec"
+	"strings"
+	"time"
 
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/skill"
@@ -27,6 +29,8 @@ func (s *NotificationsSkill) Init(ctx skill.Context) {
 		return
 	}
 
+	ctx.Status.Register("notification:icon", 5*time.Second, notificationIcon)
+
 	ctx.Store.UpsertEntry(entry.Entry{
 		Label: "notifications on",
 		Run: func(ec entry.Context) {
@@ -45,4 +49,17 @@ func (s *NotificationsSkill) Init(ctx skill.Context) {
 			}
 		},
 	})
+}
+
+func notificationIcon() string {
+	out, err := exec.Command("makoctl", "mode").Output()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.TrimSpace(line) == "hide" {
+			return "󰂛"
+		}
+	}
+	return "󰂚"
 }

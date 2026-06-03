@@ -2,9 +2,11 @@ package ui
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/notifier"
+	"uberlauncher/internal/statusbar"
 	"uberlauncher/internal/store"
 
 	"charm.land/bubbles/v2/textinput"
@@ -47,6 +49,7 @@ var (
 type model struct {
 	entries []entry.Entry
 	height  int
+	width   int
 	input   textinput.Model
 	cursor  int
 
@@ -55,9 +58,23 @@ type model struct {
 
 	store    *store.Store
 	notifier *notifier.Notifier
+
+	statusEnabled bool
+	statusStore   *statusbar.Store
+	statusLeft    string
+	statusCenter  string
+	statusRight   string
 }
 
-func New(st *store.Store, n *notifier.Notifier) model {
+type StatusBarOptions struct {
+	Enabled             bool
+	Store               *statusbar.Store
+	Left, Center, Right string
+}
+
+var placeholderRegex = regexp.MustCompile(`\{\{([\w:]+)\}\}`)
+
+func New(st *store.Store, n *notifier.Notifier, sb StatusBarOptions) model {
 	selectedInputStyles.Focused.Text = selectedEntryStyle
 
 	i := textinput.New()
@@ -74,6 +91,12 @@ func New(st *store.Store, n *notifier.Notifier) model {
 
 		store:    st,
 		notifier: n,
+
+		statusEnabled: sb.Enabled,
+		statusStore:   sb.Store,
+		statusLeft:    sb.Left,
+		statusCenter:  sb.Center,
+		statusRight:   sb.Right,
 	}
 }
 
@@ -83,7 +106,26 @@ func waitForNotifierEvent(ch <-chan notifier.Event) tea.Cmd {
 	}
 }
 
+type statusUpdateMsg struct{}
+
+func waitForStatusUpdate(ch <-chan struct{}) tea.Cmd {
+	return func() tea.Msg {
+		<-ch
+		return statusUpdateMsg{}
+	}
+}
+
+func (m model) isStatusBarEnabled() bool {
+	return m.statusEnabled
+}
+
 func (m model) Init() tea.Cmd {
+	if m.isStatusBarEnabled() {
+		return tea.Batch(
+			waitForNotifierEvent(m.notifier.Events),
+			waitForStatusUpdate(m.statusStore.Updates),
+		)
+	}
 	return waitForNotifierEvent(m.notifier.Events)
 }
 
@@ -97,8 +139,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateMessageCursor(Next)
 		cmd = waitForNotifierEvent(m.notifier.Events)
 
+	case statusUpdateMsg:
+		cmd = waitForStatusUpdate(m.statusStore.Updates)
+
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
+		m.width = msg.Width
 		m.updateCursor(None)
 
 	case tea.KeyMsg:
@@ -177,8 +223,11 @@ func (m model) getSelectedEntry() (entry.Entry, bool) {
 }
 
 func (m *model) getEntryListHeight() int {
-	// The total height minus one line of input, one line of messages.
-	return max(m.height-1-1, 0)
+	reservedLines := 2 // input + messages
+	if m.isStatusBarEnabled() {
+		reservedLines += 2 // status bar + empty gap
+	}
+	return max(m.height-reservedLines, 0)
 }
 
 func (m *model) getActiveFreeTextEntry() (entry.Entry, bool) {
@@ -221,6 +270,11 @@ func wrapCursor(min int, max int, cursor int) int {
 
 func (m model) View() tea.View {
 	s := ""
+
+	// Render the status bar
+	if m.isStatusBarEnabled() {
+		s += renderStatusBar(m.statusLeft, m.statusCenter, m.statusRight, m.statusStore, m.width)
+	}
 
 	// Render the entry list
 	if m.isFreeTextModeActive() {
@@ -283,6 +337,27 @@ func renderEntryLine(content, annotation string, isSelected bool) string {
 		return fmt.Sprintf("%s %s %s\n", cursor, content, annotation)
 	}
 	return fmt.Sprintf("%s %s\n", cursor, content)
+}
+
+func renderStatusBar(left, center, right string, store *statusbar.Store, width int) string {
+	resolve := func(s string) string {
+		return placeholderRegex.ReplaceAllStringFunc(s, func(match string) string {
+			return store.Get(match[2 : len(match)-2])
+		})
+	}
+
+	third := width / 3
+
+	leftStyle := lipgloss.NewStyle().Width(third).Align(lipgloss.Left)
+	centerStyle := lipgloss.NewStyle().Width(third).Align(lipgloss.Center)
+	rightStyle := lipgloss.NewStyle().Width(width - 2*third).Align(lipgloss.Right)
+
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		leftStyle.Render(resolve(left)),
+		centerStyle.Render(resolve(center)),
+		rightStyle.Render(resolve(right)),
+	) + "\n\n"
 }
 
 func renderMessageLine(messages []notifier.Event, cursor int) string {

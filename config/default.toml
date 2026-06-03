@@ -7,8 +7,27 @@
 [general]
 # No general config yet.
 
+[statusbar]
+# Configure the status bar displayed at the top of the launcher.
+# Use {{key}} placeholders to insert live values supplied by skills.
+# enabled = false
+#
+left   = "{{time}}"
+center = ""
+right  = "{{notification:icon}} {{bluetooth:icon}} {{wifi:icon}} {{battery:icon}} {{battery:percentage}}%"
+
 [skills.apps]
 # enabled = false
+
+[skills.battery]
+# enabled = false
+
+[skills.clock]
+# enabled = false
+
+# Time format using Go's reference time: Mon Jan 2 15:04:05 MST 2006
+# Examples: "15:04" (default), "3:04 PM", "15:04:05", "Mon 15:04"
+format = "Wed 2006-01-02 15:04"
 
 [skills.search]
 # enabled = false

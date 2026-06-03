@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os/exec"
 	"strings"
+	"time"
 
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/skill"
@@ -27,6 +28,9 @@ func (s *WifiSkill) Init(ctx skill.Context) {
 		ctx.Notifier.ReportError(errors.New("nmcli not found"))
 		return
 	}
+
+	ctx.Status.Register("wifi", 5*time.Second, activeSSID)
+	ctx.Status.Register("wifi:icon", 10*time.Second, wifiIcon)
 
 	ctx.Store.UpsertEntry(entry.Entry{
 		Label: "wifi on",
@@ -64,6 +68,30 @@ func (s *WifiSkill) Init(ctx skill.Context) {
 			},
 		})
 	}
+}
+
+func wifiIcon() string {
+	if activeSSID() != "" {
+		return "󰤨"
+	}
+	return "󰤭"
+}
+
+func activeSSID() string {
+	out, err := exec.Command("nmcli", "-t", "-f", "ACTIVE,SSID", "dev", "wifi").Output()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) == 2 && parts[0] == "yes" {
+			return strings.TrimSpace(parts[1])
+		}
+	}
+	return ""
 }
 
 func knownConnections() ([]string, error) {

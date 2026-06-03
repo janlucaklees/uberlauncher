@@ -1,6 +1,7 @@
 package skill
 
 import (
+	"time"
 	"uberlauncher/internal/entry"
 )
 
@@ -28,10 +29,15 @@ type Store interface {
 	UpsertEntry(e entry.Entry)
 }
 
+type StatusUpdater interface {
+	Register(key string, interval time.Duration, fn func() string)
+}
+
 type Context struct {
 	Runtime  Runtime
 	Notifier Notifier
 	Store    Store
+	Status   StatusUpdater
 
 	Config ConfigMap
 	Cache  Cache
