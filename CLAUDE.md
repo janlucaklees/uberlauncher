@@ -42,8 +42,8 @@ type Skill interface {
 type Context struct {
     Runtime  Runtime   // goroutine lifecycle: Go() + HasCommand()
     Cache    Cache     // namespaced file cache: ReadFile() + WriteFile()
-    Notifier Notifier  // UI feedback: ReportError() + ReportMessage() + SendNotification()
-    Config   Config    // key-value config: Get() + GetInt() + GetBool() + Set()
+    Notifier Notifier  // UI feedback: Debug() + ReportError() + ReportWarning() + ReportMessage() + SendNotification()
+    Config   ConfigMap // map[string]any — skill's section from config.toml
     Store    Store     // entry registration: UpsertEntry()
 }
 ```
@@ -80,9 +80,15 @@ Dynamic entry updates (store events) are not yet implemented. When a skill needs
 | Skill | Id | Notes |
 |---|---|---|
 | `apps` | `apps` | Parses `.desktop` files; caches to `~/.cache/uberlauncher/apps/`; launches via `hyprctl` if available |
-| `search` | `search` | Free-text; opens Google search via `xdg-open` |
-| `todo` | `todo` | Todoist quick-add via API; reads token from `ctx.Config` |
+| `bluetooth` | `bluetooth` | Power on/off + connect to paired devices via `bluetoothctl` |
+| `custom` | `custom` | User-defined shell commands from config; each entry has a `label` and `command` |
+| `keyboard` | `keyboard` | Switch keyboard layout via `hyprctl switchxkblayout`; reads configured layouts from `hyprctl getoption input:kb_layout` |
+| `notifications` | `notifications` | Enable/disable notifications via `makoctl` (do-not-disturb mode) |
+| `power` | `power` | Set performance profile (power save / balanced / performance) via `powerprofilesctl` |
+| `debug` | `debug` | Test entries for development; only loaded when `-v`/`--verbose` flag is set |
+| `search` | `search` | Free-text; opens a search via `xdg-open` |
 | `system` | `system` | Shutdown / reboot via `systemctl` or `shutdown` |
+| `todoist` | `todoist` | Todoist quick-add via API; reads token from `ctx.Config["token"]` |
 | `wifi` | `wifi` | Known WiFi connections via `nmcli` |
 
 ### Linters enabled (`.golangci.yml`)

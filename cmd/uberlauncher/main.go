@@ -15,8 +15,12 @@ import (
 	"uberlauncher/internal/runtime"
 	"uberlauncher/internal/skill"
 	"uberlauncher/internal/skills/apps"
+	"uberlauncher/internal/skills/bluetooth"
 	"uberlauncher/internal/skills/custom"
 	"uberlauncher/internal/skills/debug"
+	"uberlauncher/internal/skills/keyboard"
+	"uberlauncher/internal/skills/notifications"
+	"uberlauncher/internal/skills/power"
 	"uberlauncher/internal/skills/search"
 	"uberlauncher/internal/skills/system"
 	"uberlauncher/internal/skills/todoist"
@@ -28,7 +32,11 @@ import (
 // Register your skills here.
 var skillList = []skill.Skill{
 	apps.New(),
+	bluetooth.New(),
 	custom.New(),
+	keyboard.New(),
+	notifications.New(),
+	power.New(),
 	search.New(),
 	system.New(),
 	todoist.New(),
