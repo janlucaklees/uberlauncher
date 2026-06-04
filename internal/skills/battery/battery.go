@@ -19,11 +19,6 @@ func New() skill.Skill {
 func (s *BatterySkill) Id() string { return "battery" }
 
 func (s *BatterySkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	ctx.Status.Register("battery:icon", 60*time.Second, batteryIcon)
 	ctx.Status.Register("battery:percentage", 60*time.Second, batteryPercentage)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"uberlauncher/internal/engines"
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/notifier"
 	"uberlauncher/internal/statusbar"
@@ -47,7 +48,7 @@ var (
 )
 
 type model struct {
-	entries []entry.Entry
+	matches []engines.Match
 	height  int
 	width   int
 	input   textinput.Model
@@ -83,7 +84,7 @@ func New(st *store.Store, n *notifier.Notifier, sb StatusBarOptions) model {
 	i.Focus()
 
 	return model{
-		entries: st.GetMatches(""),
+		matches: st.GetMatches(""),
 		input:   i,
 		cursor:  0,
 
@@ -115,18 +116,25 @@ func waitForStatusUpdate(ch <-chan struct{}) tea.Cmd {
 	}
 }
 
+type storeUpdateMsg struct{}
+
+func waitForStoreUpdate(ch <-chan struct{}) tea.Cmd {
+	return func() tea.Msg {
+		<-ch
+		return storeUpdateMsg{}
+	}
+}
+
 func (m model) isStatusBarEnabled() bool {
 	return m.statusEnabled
 }
 
 func (m model) Init() tea.Cmd {
-	if m.isStatusBarEnabled() {
-		return tea.Batch(
-			waitForNotifierEvent(m.notifier.Events),
-			waitForStatusUpdate(m.statusStore.Updates),
-		)
-	}
-	return waitForNotifierEvent(m.notifier.Events)
+	return tea.Batch(
+		waitForNotifierEvent(m.notifier.Events),
+		waitForStatusUpdate(m.statusStore.Updates),
+		waitForStoreUpdate(m.store.Updates),
+	)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -141,6 +149,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case statusUpdateMsg:
 		cmd = waitForStatusUpdate(m.statusStore.Updates)
+
+	case storeUpdateMsg:
+		if !m.isFreeTextModeActive() {
+			m.updateEntries()
+			m.updateCursor(None)
+		}
+		cmd = waitForStoreUpdate(m.store.Updates)
 
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
@@ -192,7 +207,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.input, cmd = m.input.Update(msg)
 
 			if !m.isFreeTextModeActive() {
-				m.entries = m.store.GetMatches(m.input.Value())
+				m.updateEntries()
 			}
 
 			m.updateCursor(None)
@@ -215,8 +230,8 @@ func (m model) getSelectedEntry() (entry.Entry, bool) {
 	}
 
 	// Otherwise, return the entry under the cursor, in case there is one.
-	if len(m.entries) > 0 {
-		return m.entries[m.cursor], true
+	if len(m.matches) > 0 {
+		return m.matches[m.cursor].Entry, true
 	}
 
 	return entry.Entry{}, false
@@ -233,9 +248,9 @@ func (m *model) getEntryListHeight() int {
 func (m *model) getActiveFreeTextEntry() (entry.Entry, bool) {
 	i := m.input.Value()
 
-	for _, e := range m.entries {
-		if strings.HasPrefix(i, e.Label+" ") {
-			return e, true
+	for _, e := range m.matches {
+		if strings.HasPrefix(i, e.Entry.Label+" ") {
+			return e.Entry, true
 		}
 	}
 
@@ -247,10 +262,14 @@ func (m *model) isFreeTextModeActive() bool {
 	return ok
 }
 
+func (m *model) updateEntries() {
+	m.matches = m.store.GetMatches(m.input.Value())
+}
+
 func (m *model) updateCursor(d Direction) {
 	m.cursor = wrapCursor(
 		0,
-		max(0, min(m.getEntryListHeight(), len(m.entries))-1),
+		max(0, min(m.getEntryListHeight(), len(m.matches))-1),
 		m.cursor+int(d),
 	)
 }
@@ -279,9 +298,9 @@ func (m model) View() tea.View {
 	// Render the entry list
 	if m.isFreeTextModeActive() {
 		// When free-text mode is active, make sure the cursor never shows up in the entry list.
-		s += renderEntries(m.entries, -1, m.getEntryListHeight())
+		s += renderEntries(m.matches, -1, m.getEntryListHeight())
 	} else {
-		s += renderEntries(m.entries, m.cursor, m.getEntryListHeight())
+		s += renderEntries(m.matches, m.cursor, m.getEntryListHeight())
 	}
 
 	// Render the input
@@ -298,7 +317,7 @@ func (m model) View() tea.View {
 	return tea.NewView(strings.TrimSuffix(s, "\n"))
 }
 
-func renderEntries(entries []entry.Entry, cursor int, availableHeight int) string {
+func renderEntries(entries []engines.Match, cursor int, availableHeight int) string {
 	numEntries := min(availableHeight, len(entries))
 
 	var s string
@@ -316,13 +335,13 @@ func renderEntries(entries []entry.Entry, cursor int, availableHeight int) strin
 	return s
 }
 
-func renderEntry(e entry.Entry, isSelected bool) string {
-	label := e.Label
-	if e.IsFreeText {
+func renderEntry(e engines.Match, isSelected bool) string {
+	label := e.Entry.Label
+	if e.Entry.IsFreeText {
 		label += freeTextEntryChar
 	}
 
-	return renderEntryLine(label, skillIdStyle.Render(e.SkillId), isSelected)
+	return renderEntryLine(label, skillIdStyle.Render(e.Entry.SkillId), isSelected)
 }
 
 func renderEntryLine(content, annotation string, isSelected bool) string {

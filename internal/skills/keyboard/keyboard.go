@@ -19,17 +19,12 @@ func New() skill.Skill {
 func (s *KeyboardSkill) Id() string { return "keyboard" }
 
 func (s *KeyboardSkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	if !ctx.Runtime.HasCommand("hyprctl") {
 		ctx.Notifier.ReportError(errors.New("hyprctl not found"))
 		return
 	}
 
-	layouts, err := configuredLayouts()
+	layouts, err := configuredLayouts(ctx.Runtime)
 	if err != nil {
 		ctx.Notifier.ReportError(err)
 		return
@@ -49,8 +44,8 @@ func (s *KeyboardSkill) Init(ctx skill.Context) {
 	}
 }
 
-func configuredLayouts() ([]string, error) {
-	out, err := exec.Command("hyprctl", "getoption", "input:kb_layout").Output()
+func configuredLayouts(rt skill.Runtime) ([]string, error) {
+	out, err := rt.Command("hyprctl", "getoption", "input:kb_layout").Output()
 	if err != nil {
 		return nil, err
 	}

@@ -16,11 +16,6 @@ func New() skill.Skill {
 func (s *SystemSkill) Id() string { return "system" }
 
 func (s *SystemSkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	ctx.Store.UpsertEntry(entry.Entry{
 		Label: "system shutdown",
 		Run: func(ec entry.Context) {

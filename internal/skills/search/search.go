@@ -19,11 +19,6 @@ func New() skill.Skill {
 func (s *SearchSkill) Id() string { return "search" }
 
 func (s *SearchSkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	searchTemplate, ok := ctx.Config["url"].(string)
 	if !ok || strings.TrimSpace(searchTemplate) == "" {
 		ctx.Notifier.ReportWarning("Missing config: set skills.search.url in config.toml")

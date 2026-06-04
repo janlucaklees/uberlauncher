@@ -19,17 +19,14 @@ func New() skill.Skill {
 func (s *NotificationsSkill) Id() string { return "notifications" }
 
 func (s *NotificationsSkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	if !ctx.Runtime.HasCommand("makoctl") {
 		ctx.Notifier.ReportError(errors.New("makoctl not found"))
 		return
 	}
 
-	ctx.Status.Register("notification:icon", 5*time.Second, notificationIcon)
+	ctx.Status.Register("notification:icon", 5*time.Second, func() string {
+		return notificationIcon(ctx.Runtime)
+	})
 
 	ctx.Store.UpsertEntry(entry.Entry{
 		Label: "notifications on",
@@ -51,8 +48,8 @@ func (s *NotificationsSkill) Init(ctx skill.Context) {
 	})
 }
 
-func notificationIcon() string {
-	out, err := exec.Command("makoctl", "mode").Output()
+func notificationIcon(rt skill.Runtime) string {
+	out, err := rt.Command("makoctl", "mode").Output()
 	if err != nil {
 		return ""
 	}

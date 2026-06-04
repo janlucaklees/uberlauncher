@@ -17,11 +17,6 @@ func New() skill.Skill {
 func (s *CustomSkill) Id() string { return "custom" }
 
 func (s *CustomSkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	for key, val := range ctx.Config {
 		def, ok := val.(map[string]any)
 		if !ok {

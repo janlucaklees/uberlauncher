@@ -17,11 +17,6 @@ func New() skill.Skill {
 func (s *PowerSkill) Id() string { return "power" }
 
 func (s *PowerSkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	if !ctx.Runtime.HasCommand("powerprofilesctl") {
 		ctx.Notifier.ReportError(errors.New("powerprofilesctl not found"))
 		return

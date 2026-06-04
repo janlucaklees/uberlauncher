@@ -14,11 +14,6 @@ func New() skill.Skill {
 func (s *ClockSkill) Id() string { return "clock" }
 
 func (s *ClockSkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	format := "15:04"
 	if f, ok := ctx.Config["format"].(string); ok && f != "" {
 		format = f

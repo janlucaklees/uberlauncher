@@ -37,11 +37,6 @@ func New() skill.Skill {
 func (s *AppsSkill) Id() string { return "apps" }
 
 func (s *AppsSkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	s.ctx = ctx
 
 	c, ok := loadCache(ctx.Cache)

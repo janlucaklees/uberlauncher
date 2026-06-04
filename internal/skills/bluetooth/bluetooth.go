@@ -19,11 +19,6 @@ func New() skill.Skill {
 func (s *BluetoothSkill) Id() string { return "bluetooth" }
 
 func (s *BluetoothSkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	if !ctx.Runtime.HasCommand("bluetoothctl") {
 		ctx.Notifier.ReportError(errors.New("bluetoothctl not found"))
 		return
@@ -48,9 +43,11 @@ func (s *BluetoothSkill) Init(ctx skill.Context) {
 		},
 	})
 
-	ctx.Status.Register("bluetooth:icon", 10*time.Second, bluetoothIcon)
+	ctx.Status.Register("bluetooth:icon", 10*time.Second, func() string {
+		return bluetoothIcon(ctx.Runtime)
+	})
 
-	devices, err := pairedDevices()
+	devices, err := pairedDevices(ctx.Runtime)
 	if err != nil {
 		ctx.Notifier.ReportError(err)
 		return
@@ -69,8 +66,8 @@ func (s *BluetoothSkill) Init(ctx skill.Context) {
 	}
 }
 
-func bluetoothIcon() string {
-	out, err := exec.Command("bluetoothctl", "show").Output()
+func bluetoothIcon(rt skill.Runtime) string {
+	out, err := rt.Command("bluetoothctl", "show").Output()
 	if err != nil {
 		return ""
 	}
@@ -87,8 +84,8 @@ type device struct {
 	name string
 }
 
-func pairedDevices() ([]device, error) {
-	out, err := exec.Command("bluetoothctl", "devices", "Paired").Output()
+func pairedDevices(rt skill.Runtime) ([]device, error) {
+	out, err := rt.Command("bluetoothctl", "devices", "Paired").Output()
 	if err != nil {
 		return nil, err
 	}

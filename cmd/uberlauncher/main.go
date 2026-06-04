@@ -85,14 +85,20 @@ func main() {
 	sbCfg := cfg.GetStatusBarConfig()
 
 	for _, s := range skillList {
-		s.Init(skill.Context{
-			Runtime:  rt,
-			Notifier: n,
-			Status:   sbUpdater,
-
-			Store:  st.GetForSkill(s),
-			Cache:  c.GetForSkill(s),
-			Config: cfg.GetForSkill(s),
+		s := s
+		skillCfg := cfg.GetForSkill(s)
+		if !skillCfg.IsEnabled() {
+			continue
+		}
+		rt.Go(func() {
+			s.Init(skill.Context{
+				Runtime:  rt,
+				Notifier: n,
+				Status:   sbUpdater,
+				Store:    st.GetForSkill(s),
+				Cache:    c.GetForSkill(s),
+				Config:   skillCfg,
+			})
 		})
 	}
 
@@ -111,5 +117,6 @@ func main() {
 	}
 
 	cancel()
+	rt.Shutdown()
 	rt.Wait()
 }

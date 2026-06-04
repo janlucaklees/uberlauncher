@@ -24,11 +24,6 @@ func New() skill.Skill {
 func (s *TodoSkill) Id() string { return "todoist" }
 
 func (s *TodoSkill) Init(ctx skill.Context) {
-	enabled, ok := ctx.Config["enabled"].(bool)
-	if ok && !enabled {
-		return
-	}
-
 	token, ok := ctx.Config["token"].(string)
 	if !ok || token == "" {
 		ctx.Notifier.ReportWarning("Missing config: set skills.todoist.token in config.toml")

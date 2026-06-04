@@ -12,13 +12,15 @@ import (
 type Store struct {
 	mu      sync.RWMutex
 	entries map[string]entry.Entry
-	Engine  engines.Engine
+	engine  engines.Engine
+	Updates chan struct{}
 }
 
 func New(engine engines.Engine) *Store {
 	return &Store{
 		entries: make(map[string]entry.Entry),
-		Engine:  engine,
+		engine:  engine,
+		Updates: make(chan struct{}, 1),
 	}
 }
 
@@ -30,16 +32,20 @@ func (s *Store) UpsertEntry(e entry.Entry) {
 	s.mu.Lock()
 	s.entries[key] = e
 	s.mu.Unlock()
+	select {
+	case s.Updates <- struct{}{}:
+	default:
+	}
 }
 
-func (s *Store) GetMatches(query string) []entry.Entry {
+func (s *Store) GetMatches(query string) []engines.Match {
 	s.mu.RLock()
 	entries := make([]entry.Entry, 0, len(s.entries))
 	for _, e := range s.entries {
 		entries = append(entries, e)
 	}
 	s.mu.RUnlock()
-	return s.Engine.Rank(entries, query)
+	return s.engine.Rank(entries, query)
 }
 
 type SkillStore struct {

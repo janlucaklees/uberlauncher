@@ -1,6 +1,7 @@
 package skill
 
 import (
+	"os/exec"
 	"time"
 	"uberlauncher/internal/entry"
 )
@@ -8,6 +9,8 @@ import (
 type Runtime interface {
 	HasCommand(name string) bool
 	Go(fn func())
+	Done() <-chan struct{}
+	Command(name string, args ...string) *exec.Cmd
 }
 
 type Cache interface {
@@ -24,6 +27,11 @@ type Notifier interface {
 }
 
 type ConfigMap map[string]any
+
+func (m ConfigMap) IsEnabled() bool {
+	enabled, ok := m["enabled"].(bool)
+	return !ok || enabled
+}
 
 type Store interface {
 	UpsertEntry(e entry.Entry)
