@@ -45,14 +45,15 @@ AUR packaging is planned.
 Here is how I currently use it in my Hyprland setup:
 
 ```ini
-bind = SUPER, SPACE, exec, footclient --term xterm-256color --app-id uberlauncher -T Launcher -e zsh -c ~/Projects/uberlauncher/uberlauncher
-windowrule = float on, center on, pin on, stay_focused on, match:class launcher
+bind = SUPER, SPACE, exec, ~/Projects/uberlauncher/scripts/toggle_uberlauncher.sh
+windowrule = float on, center on, pin on, stay_focused on, match:class uberlauncher
 ```
 
 I am using:
 - The great [`foot` terminal](https://codeberg.org/dnkl/foot) for instant startup.
 - `zsh -c` to avoid unnecessary shell initialization overhead.
 - Window rules to keep the launcher centered, focused and always on top.
+- A [small script](./scripts/toggle_uberlauncher.sh) to close the launcher with the same key-binding.
 
 Adjust this however fits your workflow best.
 
