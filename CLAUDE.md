@@ -19,6 +19,43 @@ Run a single test package: `go test ./internal/engines/...`
 
 Git hooks (Lefthook): `pre-commit` runs fmt-check, vet, lint; `pre-push` runs tests.
 
+## Go Conventions
+
+### Service Object Pattern
+Skills store `skill.Context` on the struct in `Init` and implement all behavior as methods on the receiver. Never thread context through as a function parameter after initialization.
+
+```go
+type MySkill struct {
+    ctx skill.Context
+}
+
+func (s *MySkill) Init(ctx skill.Context) {
+    s.ctx = ctx
+    // all further logic uses s.ctx
+}
+```
+
+### Rich Domain Model
+Define one struct per domain concept with semantic boolean fields. Do not split a concept across multiple thin data-transfer types and merge them at call sites. A unified type with meaningful fields (`isConnected`, `isSaved`, `isSecured`) is always preferred over separate `savedX` and `scannedX` structs.
+
+### Ubiquitous Language
+Pick one name per concept and use it consistently across all files, types, methods, and parameters. Mixing synonyms (`network`, `connection`, `saved`, `scanned`) for the same concept signals a modelling problem, not a naming problem.
+
+### Eliminate Accidental Complexity
+Do not build infrastructure for features that cannot work end-to-end. If a feature is incomplete (e.g. connecting to unsaved secured networks requires a password prompt that does not exist), remove the scaffolding entirely rather than leaving dead code.
+
+### Single Level of Abstraction
+Orchestrating functions read like a table of contents — they name steps and delegate everything. Implementation functions do one concrete thing and know nothing about the bigger picture. Never mix the two in the same function.
+
+## Performance & Snappiness
+
+Snappiness is a core requirement of this launcher — not a nice-to-have. The launcher is a keystroke-triggered tool and must feel instant.
+
+- **Known data is shown immediately.** Never gate fast data behind slow data. If saved connections are known, upsert them before waiting for a network scan.
+- **Slow operations run in the background.** Subprocess calls, network I/O, and disk reads belong in `ctx.Runtime.Go()` goroutines, not in the synchronous part of `Init()`.
+- **Upsert as soon as data is available.** Do not batch or defer — call `ctx.Store.UpsertEntry()` the moment each piece of data is ready.
+- **Actions should trigger immediate UI updates.** When a user-initiated action changes known state (e.g. connecting to a network), re-upsert the affected entries right away rather than waiting for the next poll cycle.
+
 ## Architecture
 
 UberLauncher is a BubbleTea TUI launcher. Skills push entries into a store during initialization; the UI renders them and re-ranks on every keystroke.
@@ -106,3 +143,4 @@ Dynamic entry updates (store events) are not yet implemented. When a skill needs
 - `docs/gwi/architecture-who-owns-what.md` — ownership table for every concern in the system
 - `docs/gwi/architecture-trace-data-flow-first.md` — map producer→channel→consumer before designing
 - `docs/gwi/channels-producer-owns.md` — the producer creates the channel, not main.go
+- `docs/gwi/domain-model-prefer-rich.md` — one semantic struct per concept; no anemic data bags
