@@ -5,8 +5,16 @@ import (
 	"math"
 )
 
+type Key int
+
+const (
+	KeyLeft Key = iota
+	KeyRight
+)
+
 type UI struct {
-	KeepOpen func()
+	KeepOpen      func()
+	SetKeyHandler func(func(Key))
 }
 
 type Context struct {

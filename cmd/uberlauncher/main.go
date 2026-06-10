@@ -18,6 +18,7 @@ import (
 	"uberlauncher/internal/skills/apps"
 	"uberlauncher/internal/skills/battery"
 	"uberlauncher/internal/skills/bluetooth"
+	"uberlauncher/internal/skills/brightness"
 	"uberlauncher/internal/skills/clock"
 	"uberlauncher/internal/skills/custom"
 	"uberlauncher/internal/skills/debug"
@@ -39,6 +40,7 @@ var skillList = []skill.Skill{
 	apps.New(),
 	battery.New(),
 	bluetooth.New(),
+	brightness.New(),
 	clock.New(),
 	custom.New(),
 	emoji.New(),

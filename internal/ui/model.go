@@ -54,6 +54,8 @@ type model struct {
 	input   textinput.Model
 	cursor  int
 
+	keyHandler func(entry.Key)
+
 	messages      []notifier.Event
 	messageCursor int
 
@@ -166,6 +168,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch key := msg.Key(); key.Code {
 
 		case tea.KeyEscape:
+			if m.keyHandler != nil {
+				m.keyHandler = nil
+				return m, nil
+			}
 			return m.quit()
 
 		case tea.KeyUp:
@@ -178,6 +184,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateCursor(Down)
 			}
 
+		case tea.KeyLeft:
+			if m.keyHandler != nil {
+				m.keyHandler(entry.KeyLeft)
+				m.updateEntries()
+				return m, nil
+			}
+			m.input, cmd = m.input.Update(msg)
+
+		case tea.KeyRight:
+			if m.keyHandler != nil {
+				m.keyHandler(entry.KeyRight)
+				m.updateEntries()
+				return m, nil
+			}
+			m.input, cmd = m.input.Update(msg)
+
 		case tea.KeyTab:
 			m.updateMessageCursor(Prev)
 
@@ -186,6 +208,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if ok {
 				closeAfterRun := true
+				var newKeyHandler func(entry.Key)
 
 				selected.Run(entry.Context{
 					Input: m.input.Value(),
@@ -193,17 +216,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						KeepOpen: func() {
 							closeAfterRun = false
 						},
+						SetKeyHandler: func(fn func(entry.Key)) {
+							newKeyHandler = fn
+						},
 					},
 				})
 
 				if closeAfterRun {
 					return m.quit()
 				}
+				m.keyHandler = newKeyHandler
 			} else {
 				m.notifier.ReportError(fmt.Errorf("No matching entry found!"))
 			}
 
 		default:
+			m.keyHandler = nil
 			m.input, cmd = m.input.Update(msg)
 
 			if !m.isFreeTextModeActive() {
