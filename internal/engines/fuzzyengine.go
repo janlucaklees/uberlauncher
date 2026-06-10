@@ -1,6 +1,8 @@
 package engines
 
 import (
+	"sort"
+
 	"github.com/sahilm/fuzzy"
 
 	"uberlauncher/internal/entry"
@@ -57,6 +59,13 @@ func (fe *FuzzyEngine) Rank(entries []entry.Entry, query string) []Match {
 		})
 		addedEntries[e.GlobalId()] = struct{}{}
 	}
+
+	sort.SliceStable(result, func(i, j int) bool {
+		if result[i].Score != result[j].Score {
+			return result[i].Score > result[j].Score
+		}
+		return result[i].Entry.Label < result[j].Entry.Label
+	})
 
 	return result
 }
