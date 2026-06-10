@@ -16,6 +16,7 @@ import (
 	"uberlauncher/internal/runtime"
 	"uberlauncher/internal/skill"
 	"uberlauncher/internal/skills/apps"
+	"uberlauncher/internal/skills/audio"
 	"uberlauncher/internal/skills/battery"
 	"uberlauncher/internal/skills/bluetooth"
 	"uberlauncher/internal/skills/brightness"
@@ -38,6 +39,7 @@ import (
 // Register your skills here.
 var skillList = []skill.Skill{
 	apps.New(),
+	audio.New(),
 	battery.New(),
 	bluetooth.New(),
 	brightness.New(),
