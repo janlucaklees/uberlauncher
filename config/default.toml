@@ -14,7 +14,7 @@
 #
 left   = "{{time}}"
 center = ""
-right  = "{{notification:icon}} {{bluetooth:icon}} {{wifi:icon}} {{battery:icon}} {{battery:percentage}}%"
+right  = "{{power:icon}} {{notification:icon}} {{bluetooth:icon}} {{wifi:icon}} {{battery:icon}} {{battery:percentage}}%"
 
 [skills.apps]
 # enabled = false

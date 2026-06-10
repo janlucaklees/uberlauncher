@@ -3,6 +3,8 @@ package power
 import (
 	"errors"
 	"os/exec"
+	"strings"
+	"time"
 
 	"uberlauncher/internal/entry"
 	"uberlauncher/internal/skill"
@@ -21,6 +23,23 @@ func (s *PowerSkill) Init(ctx skill.Context) {
 		ctx.Notifier.ReportError(errors.New("powerprofilesctl not found"))
 		return
 	}
+
+	ctx.Status.Register("power:icon", 10*time.Second, func() string {
+		out, err := ctx.Runtime.Command("powerprofilesctl", "get").Output()
+		if err != nil {
+			return ""
+		}
+		switch strings.TrimSpace(string(out)) {
+		case "power-saver":
+			return "󰌪"
+		case "balanced":
+			return "󰈐"
+		case "performance":
+			return "󱐋"
+		default:
+			return ""
+		}
+	})
 
 	ctx.Store.UpsertEntry(entry.Entry{
 		Label: "power save",
