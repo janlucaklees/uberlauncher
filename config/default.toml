@@ -27,7 +27,7 @@ right  = "{{power:icon}} {{notification:icon}} {{bluetooth:icon}} {{wifi:icon}} 
 
 # Time format using Go's reference time: Mon Jan 2 15:04:05 MST 2006
 # Examples: "15:04" (default), "3:04 PM", "15:04:05", "Mon 15:04"
-format = "Wed 2006-01-02 15:04"
+format = "Mon 2006-01-02 15:04"
 
 [skills.search]
 # enabled = false
