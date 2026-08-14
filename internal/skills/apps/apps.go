@@ -76,7 +76,7 @@ func (s *AppsSkill) upsertApps(apps []appEntry) {
 					s.ctx.Notifier.Debug("Hyprland detected!")
 					// Run (not Start) so we wait for hyprctl to finish sending its
 					// socket message to Hyprland before the launcher closes.
-					err = exec.Command("hyprctl", "dispatch", "exec", execCmd).Run()
+					err = exec.Command("hyprctl", "dispatch", fmt.Sprintf(`hl.dsp.exec_cmd(%q)`, execCmd)).Run()
 				} else {
 					s.ctx.Notifier.Debug("No DE detected, falling back to just executing the command!")
 					parts := strings.Fields(execCmd)
