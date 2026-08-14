@@ -2,8 +2,7 @@ GO ?= go
 BINARY ?= uberlauncher
 CMD ?= ./cmd/uberlauncher
 
-.PHONY: help build run test fmt fmt-check vet lint tidy check clean
-
+.PHONY: help
 help:
 	@echo "Available targets:"
 	@echo "  make build      Build the launcher binary"
@@ -15,36 +14,52 @@ help:
 	@echo "  make lint       Run golangci-lint"
 	@echo "  make tidy       Run go mod tidy"
 	@echo "  make check      Run format check + vet + test + lint"
+	@echo "  make install    Install binary via go install"
 	@echo "  make clean      Remove built binary"
 
+.PHONY: build
 build:
 	$(GO) build -o $(BINARY) $(CMD)
 
+.PHONY: install
+install:
+	$(MAKE) build
+	$(GO) install $(CMD)
+
+.PHONY: run
 run:
 	$(GO) run $(CMD) --verbose --config ./config/default.toml
 
+.PHONY: test
 test:
 	$(GO) test ./...
 
+.PHONY: fmt
 fmt:
 	find . -name '*.go' -not -path './vendor/*' -print0 | xargs -0 gofmt -w
 
+.PHONY: fmt-check
 fmt-check:
 	@test -z "$(shell find . -name '*.go' -not -path './vendor/*' -print0 | xargs -0 gofmt -l)" || \
 	(echo "Run 'make fmt' to format files" && exit 1)
 
+.PHONY: vet
 vet:
 	$(GO) vet ./...
 
+.PHONY: lint
 lint:
 	@command -v golangci-lint >/dev/null 2>&1 || \
 	(echo "golangci-lint not found."; exit 127)
 	golangci-lintrun
 
+.PHONY: tidy
 tidy:
 	$(GO) mod tidy
 
+.PHONY: check
 check: fmt-check vet test lint
 
+.PHONY: clean
 clean:
 	rm -f $(BINARY)
