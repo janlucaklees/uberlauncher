@@ -23,6 +23,7 @@ import (
 	"uberlauncher/internal/skills/clock"
 	"uberlauncher/internal/skills/custom"
 	"uberlauncher/internal/skills/debug"
+	"uberlauncher/internal/skills/display"
 	"uberlauncher/internal/skills/emoji"
 	"uberlauncher/internal/skills/keyboard"
 	"uberlauncher/internal/skills/notifications"
@@ -45,6 +46,7 @@ var skillList = []skill.Skill{
 	brightness.New(),
 	clock.New(),
 	custom.New(),
+	display.New(),
 	emoji.New(),
 	keyboard.New(),
 	notifications.New(),
