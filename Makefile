@@ -51,7 +51,7 @@ vet:
 lint:
 	@command -v golangci-lint >/dev/null 2>&1 || \
 	(echo "golangci-lint not found."; exit 127)
-	golangci-lintrun
+	golangci-lint run
 
 .PHONY: tidy
 tidy:
