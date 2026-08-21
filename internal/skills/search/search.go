@@ -38,7 +38,7 @@ func (s *SearchSkill) Init(ctx skill.Context) {
 		Run: func(ec entry.Context) {
 			text := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(ec.Input), "search "))
 			if text == "" {
-				ctx.Notifier.ReportError(errors.New("Please provide a search query"))
+				ctx.Notifier.ReportError(errors.New("please provide a search query"))
 				ec.UI.KeepOpen()
 				return
 			}

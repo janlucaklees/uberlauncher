@@ -227,7 +227,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.keyHandler = newKeyHandler
 			} else {
-				m.notifier.ReportError(fmt.Errorf("No matching entry found!"))
+				m.notifier.ReportError(fmt.Errorf("no matching entry found"))
 			}
 
 		default:

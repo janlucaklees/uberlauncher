@@ -18,7 +18,7 @@ func sendDbus(summary, body string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := conn.Auth(nil); err != nil {
 		return err

@@ -35,7 +35,7 @@ func (s *TodoSkill) Init(ctx skill.Context) {
 		Run: func(ec entry.Context) {
 			token, ok := ctx.Config["token"].(string)
 			if !ok || token == "" {
-				ctx.Notifier.ReportError(fmt.Errorf("Missing config: set skills.todoist.token in config.toml"))
+				ctx.Notifier.ReportError(fmt.Errorf("missing config: set skills.todoist.token in config.toml"))
 				ec.UI.KeepOpen()
 				return
 			}
