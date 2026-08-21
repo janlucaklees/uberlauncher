@@ -31,6 +31,7 @@ import (
 	"uberlauncher/internal/skills/search"
 	"uberlauncher/internal/skills/system"
 	"uberlauncher/internal/skills/todoist"
+	"uberlauncher/internal/skills/vpn"
 	"uberlauncher/internal/skills/wifi"
 	"uberlauncher/internal/statusbar"
 	"uberlauncher/internal/store"
@@ -54,6 +55,7 @@ var skillList = []skill.Skill{
 	search.New(),
 	system.New(),
 	todoist.New(),
+	vpn.New(),
 	wifi.New(),
 }
 
