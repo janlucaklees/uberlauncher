@@ -126,6 +126,21 @@ The project is still heavily shaped by day-to-day usage and workflow friction.
 
 ---
 
+## Development
+
+Common tasks are wired up in the `Makefile`: `make build`, `make run`, `make test`, `make fmt`,
+`make vet`, `make lint`, and `make check` for the full local gate.
+
+Git hooks are managed with [lefthook](https://github.com/evilmartians/lefthook). Install the
+binary for your platform, then run `lefthook install` from the repo root. This enables:
+- **pre-commit**: formatting, `go vet`, and lint checks
+- **pre-push**: the test suite
+- **commit-msg**: enforces [Conventional Commits](https://www.conventionalcommits.org/) headers,
+  which drive automated releases via [Release Please](https://github.com/googleapis/release-please)
+
+
+---
+
 ## Donations
 
 The most valuable contribution to this project is your time and ideas. Open source becomes meaningful through people participating in it.
