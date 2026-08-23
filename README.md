@@ -90,10 +90,17 @@ Launch applications sourced from `.desktop` files on your system.
 Open web searches in your browser using the search engine of your choice.
 
 **System Control**\
-Shutdown or reboot your machine.
+Shutdown or reboot your machine, and manage system state:
+- Toggle WiFi, connect to paired Bluetooth devices, or connect to saved NetworkManager VPN
+  connections. Requires `nmcli`.
+- Adjust audio (`wpctl`) and brightness (`brightnessctl`), toggle display power, switch keyboard
+  layout, switch power profiles, and toggle do-not-disturb (`makoctl`).
 
-**Wifi Control**\
-Toggle WiFi or connect to saved networks. Requires `nmcli`.
+**Emoji Picker**\
+Search emojis and copy them to the clipboard. Requires `wl-copy`.
+
+**Status Bar**\
+Clock, battery, power profile, and VPN indicators shown in the header.
 
 **Todoist Integration**\
 Capture todos and send them to your Todoist account.
@@ -104,9 +111,6 @@ User-defined actions executing arbitrary shell commands. See [Configuration](#co
 
 ### Planned Features
 
-**Emoji Picker**\
-Quickly search and insert emojis without interrupting your workflow.
-
 **Inline Calculator**\
 Evaluate mathematical expressions directly inside the launcher.
 
@@ -115,9 +119,6 @@ Quickly continue working on recently used or downloaded files.
 
 **Calendar Integration**\
 Create calendar events without opening a dedicated calendar application.
-
-**Bluetooth Controls**\
-Connect devices or switch outputs without navigating desktop menus.
 
 **Improved ranking of actions by recency and usage**\
 Improve result ordering based on frequently and recently used actions.
