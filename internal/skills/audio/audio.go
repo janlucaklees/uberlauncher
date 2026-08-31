@@ -61,7 +61,10 @@ func (a *Audio) Init(ctx skill.Context) {
 // registerStatus wires the output/input icon, percentage and active-device
 // status bar entries, mirroring how the battery skill reports its own
 // icon+percentage pair. dB is only registered when pactl is available, since
-// wpctl never exposes it.
+// wpctl never exposes it. audio:input:gain is only registered when amixer is
+// available: it reads the ALSA "Capture" control's hardware gain ("mic
+// boost") directly from the sound card, which is a different number from
+// audio:input:db (PipeWire's software source volume).
 func registerStatus(ctx skill.Context) {
 	const interval = 1 * time.Second
 
@@ -95,6 +98,39 @@ func registerStatus(ctx skill.Context) {
 			return db
 		})
 	}
+
+	if ctx.Runtime.HasCommand("amixer") {
+		cardFlag := micCardFlag(ctx.Config)
+		ctx.Status.Register("audio:input:gain", interval, func() string {
+			db, _ := readMicGain(ctx.Runtime, cardFlag)
+			return db
+		})
+	}
+}
+
+// micCardFlag builds the amixer -c<N> flag from skills.audio.card, defaulting
+// to card 0 when unset.
+func micCardFlag(cfg skill.ConfigMap) string {
+	card, ok := cfg["card"].(int64)
+	if !ok {
+		card = 0
+	}
+	return fmt.Sprintf("-c%d", card)
+}
+
+// readMicGain shells out to amixer for the ALSA "Capture" control's gain in
+// dB — the hardware mic boost, read straight off the sound card. This is
+// distinct from audio:input:db, which is PipeWire's software source volume.
+func readMicGain(rt skill.Runtime, cardFlag string) (db string, ok bool) {
+	out, err := rt.Command("amixer", cardFlag, "get", "Capture").Output()
+	if err != nil {
+		return "", false
+	}
+	match := dbPattern.FindString(string(out))
+	if match == "" {
+		return "", false
+	}
+	return match, true
 }
 
 func upsertOutputVolume(ctx skill.Context) {

@@ -14,10 +14,18 @@
 #
 left   = "{{time}}"
 center = ""
-right  = "{{power:icon}} {{notification:icon}} {{bluetooth:icon}} {{wifi:icon}} {{vpn:icon}} {{audio:output:icon}} {{audio:output:percentage}} {{battery:icon}} {{battery:percentage}}%"
+right  = "{{power:icon}} {{notification:icon}} {{bluetooth:icon}} {{wifi:icon}} {{vpn:icon}} {{audio:output:icon}} {{audio:output:percentage}} {{audio:input:gain}} {{battery:icon}} {{battery:percentage}}%"
 
 [skills.apps]
 # enabled = false
+
+[skills.audio]
+# enabled = false
+
+# ALSA card index that exposes your microphone's "Capture" control, used for
+# the {{audio:input:gain}} status bar readout (mic boost/gain in dB, read via
+# `amixer -c<card> get Capture`). Find your card number with `arecord -l`.
+card = 1
 
 [skills.battery]
 # enabled = false
